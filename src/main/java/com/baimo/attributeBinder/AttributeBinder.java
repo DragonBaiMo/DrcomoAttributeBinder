@@ -1,23 +1,30 @@
 package com.baimo.attributeBinder;
 
+import cn.drcomo.corelib.hook.placeholder.PlaceholderAPIUtil;
+import cn.drcomo.corelib.message.MessageService;
+import cn.drcomo.corelib.util.DebugUtil;
 import com.baimo.attributeBinder.command.AttributeBinderCommand;
 import com.baimo.attributeBinder.listener.PlayerListener;
 import com.baimo.attributeBinder.manager.*;
 import com.baimo.attributeBinder.task.FlushTask;
-import com.baimo.attributeBinder.util.DebugUtil;
-import com.baimo.attributeBinder.util.PlaceholderUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
-import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitTask;
+
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * AttributeBinder 插件主类。
+ */
 public final class AttributeBinder extends JavaPlugin {
 
     private static AttributeBinder INSTANCE;
 
     private DebugUtil debug;
+    private PlaceholderAPIUtil papiUtil;
+    private MessageService messages;
     private StorageManager storage;
     private BukkitTask flushTask;
 
@@ -25,44 +32,32 @@ public final class AttributeBinder extends JavaPlugin {
     public void onEnable() {
         INSTANCE = this;
 
-        // 1. 保存默认文件
         saveDefaultConfig();
         saveResource("lang.yml", false);
 
-        // 2. 初始化 Config & Lang
-        ConfigManager.init(this);
-        LangManager.init(this);
+        debug = new DebugUtil(this, DebugUtil.LogLevel.INFO);
+        ConfigManager.init(this, debug);
+        debug.setLevel(ConfigManager.get().getLogLevel());
 
-        // 3. 日志
-        debug = new DebugUtil(this, ConfigManager.get().getLogLevel());
+        papiUtil = new PlaceholderAPIUtil(this, getName().toLowerCase());
+        registerPlaceholders();
+
+        messages = new MessageService(this, debug, ConfigManager.get().getYaml(), papiUtil, "lang", "");
+        LangManager.init(messages);
+
         debug.info("插件正在加载 ...");
 
-        // 4. 数据库
-        storage = new JdbcStorageManager(this);
+        storage = new JdbcStorageManager(this, debug);
         AttributeBinderContext.setStorage(storage);
 
-        // 5. 占位符 & 条件解析器
-        PlaceholderUtil.initialize(this);
-
-        // 6. 注册指令（统一一个指令类）
         AttributeBinderCommand mainCommand = new AttributeBinderCommand();
         getCommand("attributebinder").setExecutor(mainCommand);
         getCommand("attributebinder").setTabCompleter(mainCommand);
 
-        // 7. 事件
         getServer().getPluginManager().registerEvents(new PlayerListener(), this);
 
-        // 7.1 加载当前已在线玩家的属性数据（支持热重载场景）
-        Bukkit.getOnlinePlayers().forEach(player -> {
-            UUID uuid = player.getUniqueId();
-            Map<String, Map<String, CacheManager.Entry>> attrs = storage.loadAttributes(uuid);
-            attrs.forEach((stat, keyMap) -> keyMap.forEach((keyId, entry) -> {
-                CacheManager.setAttribute(uuid, stat, keyId, entry.getValue(), entry.isPercent());
-                AttributeApplier.apply(uuid, stat, keyId, entry.getValue(), entry.isPercent());
-            }));
-        });
+        Bukkit.getOnlinePlayers().forEach(this::loadPlayerData);
 
-        // 8. 定时任务
         int interval = ConfigManager.get().getSyncIntervalMinutes();
         if (interval > 0) {
             flushTask = new FlushTask().runTaskTimerAsynchronously(this, interval * 60L * 20, interval * 60L * 20);
@@ -71,10 +66,39 @@ public final class AttributeBinder extends JavaPlugin {
         debug.info("插件已启用，版本 " + getDescription().getVersion());
     }
 
+    private void registerPlaceholders() {
+        papiUtil.register("attr", (player, args) -> {
+            if (player == null) return "0";
+            String stat = args.toUpperCase();
+            double val = CacheManager.getAttribute(player.getUniqueId(), stat);
+            return String.valueOf(val);
+        });
+        papiUtil.register("list", (player, args) -> {
+            if (player == null) return "";
+            Map<String, Double> map = CacheManager.aggregatedAttributes(player.getUniqueId());
+            if (map.isEmpty()) return "";
+            StringBuilder sb = new StringBuilder();
+            map.forEach((k, v) -> {
+                boolean pc = CacheManager.isPercent(player.getUniqueId(), k);
+                sb.append(k).append("=").append(v).append(pc ? "%" : "").append(", ");
+            });
+            if (sb.length() >= 2) sb.setLength(sb.length() - 2);
+            return sb.toString();
+        });
+    }
+
+    private void loadPlayerData(Player player) {
+        UUID uuid = player.getUniqueId();
+        Map<String, Map<String, CacheManager.Entry>> attrs = storage.loadAttributes(uuid);
+        attrs.forEach((stat, keyMap) -> keyMap.forEach((keyId, entry) -> {
+            CacheManager.setAttribute(uuid, stat, keyId, entry.getValue(), entry.isPercent());
+            AttributeApplier.apply(uuid, stat, keyId, entry.getValue(), entry.isPercent());
+        }));
+    }
+
     @Override
     public void onDisable() {
         if (flushTask != null) flushTask.cancel();
-        // 强制写库
         storage.saveAll(CacheManager.snapshot());
         storage.close();
         debug.info("插件已卸载。");
@@ -85,14 +109,13 @@ public final class AttributeBinder extends JavaPlugin {
     public void resetFlushTask(int intervalMinutes) {
         if (flushTask != null) flushTask.cancel();
         if (intervalMinutes > 0) {
-            flushTask = new com.baimo.attributeBinder.task.FlushTask()
-                    .runTaskTimerAsynchronously(this, intervalMinutes * 60L * 20, intervalMinutes * 60L * 20);
+            flushTask = new FlushTask().runTaskTimerAsynchronously(this, intervalMinutes * 60L * 20, intervalMinutes * 60L * 20);
         } else {
             flushTask = null;
         }
     }
 
     public void updateDebugLevel() {
-        this.debug = new DebugUtil(this, ConfigManager.get().getLogLevel());
+        debug.setLevel(ConfigManager.get().getLogLevel());
     }
 }

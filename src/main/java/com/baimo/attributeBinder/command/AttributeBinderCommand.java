@@ -1,7 +1,6 @@
 package com.baimo.attributeBinder.command;
 
 import com.baimo.attributeBinder.manager.*;
-import com.baimo.attributeBinder.util.ColorUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -26,7 +25,7 @@ public class AttributeBinderCommand implements CommandExecutor, TabCompleter {
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
         if (args.length < 1) {
-            sender.sendMessage(ColorUtil.translateColors(lang.get("command-main-usage")));
+            lang.send(sender, "command-main-usage");
             return true;
         }
 
@@ -34,56 +33,56 @@ public class AttributeBinderCommand implements CommandExecutor, TabCompleter {
         switch (sub) {
             case "give":
                 if (!sender.hasPermission("attributebinder.give")) {
-                    sender.sendMessage(ColorUtil.translateColors(LangManager.get().get("error-no-permission")));
+                    lang.send(sender, "error-no-permission");
                     return true;
                 }
                 handleGive(sender, args);
                 break;
             case "remove":
                 if (!sender.hasPermission("attributebinder.remove")) {
-                    sender.sendMessage(ColorUtil.translateColors(LangManager.get().get("error-no-permission")));
+                    lang.send(sender, "error-no-permission");
                     return true;
                 }
                 handleremove(sender, args);
                 break;
             case "list":
                 if (!sender.hasPermission("attributebinder.list")) {
-                    sender.sendMessage(ColorUtil.translateColors(LangManager.get().get("error-no-permission")));
+                    lang.send(sender, "error-no-permission");
                     return true;
                 }
                 handleList(sender, args);
                 break;
             case "replace":
                 if (!sender.hasPermission("attributebinder.replace")) {
-                    sender.sendMessage(ColorUtil.translateColors(lang.get("error-no-permission")));
+                    lang.send(sender, "error-no-permission");
                     return true;
                 }
                 handleReplace(sender, args);
                 break;
             case "reload":
                 if (!sender.hasPermission("attributebinder.admin")) {
-                    sender.sendMessage(ColorUtil.translateColors(lang.get("error-no-permission")));
+                    lang.send(sender, "error-no-permission");
                     return true;
                 }
                 ConfigManager.get().reload();
                 LangManager.get().reload();
                 AttributeBinder.getInstance().resetFlushTask(ConfigManager.get().getSyncIntervalMinutes());
                 AttributeBinder.getInstance().updateDebugLevel();
-                sender.sendMessage(ColorUtil.translateColors(LangManager.get().get("command-reload-success")));
+                lang.send(sender, "command-reload-success");
                 break;
             case "flush":
                 if (!sender.hasPermission("attributebinder.admin")) {
-                    sender.sendMessage(ColorUtil.translateColors(lang.get("error-no-permission")));
+                    lang.send(sender, "error-no-permission");
                     return true;
                 }
                 new com.baimo.attributeBinder.task.FlushTask().runTaskAsynchronously(AttributeBinder.getInstance());
-                sender.sendMessage(ColorUtil.translateColors(LangManager.get().get("command-flush-success")));
+                lang.send(sender, "command-flush-success");
                 break;
             case "help":
                 handleHelp(sender);
                 break;
             default:
-                sender.sendMessage(ColorUtil.translateColors("&c未知子命令"));
+                sender.sendMessage(cn.drcomo.corelib.color.ColorUtil.translateColors("&c未知子命令"));
         }
         return true;
     }
@@ -91,12 +90,12 @@ public class AttributeBinderCommand implements CommandExecutor, TabCompleter {
     private void handleGive(CommandSender sender, String[] args) {
         // 参数格式: give <玩家> <属性> <数值> [KeyID] [memoryOnly] <过期时长ticks>
         if (args.length < 5 || args.length > 7) {
-            sender.sendMessage(ColorUtil.translateColors(lang.get("command-give-usage")));
+            lang.send(sender, "command-give-usage");
             return;
         }
         Player target = Bukkit.getPlayer(args[1]);
         if (target == null) {
-            sender.sendMessage(ColorUtil.translateColors(lang.get("error-player-not-found").replace("{player}", args[1])));
+            lang.send(sender, "error-player-not-found", Map.of("player", args[1]));
             return;
         }
         String stat = args[2].toUpperCase();
@@ -112,7 +111,7 @@ public class AttributeBinderCommand implements CommandExecutor, TabCompleter {
         try {
             expireTicks = Long.parseLong(args[len - 1]);
         } catch (NumberFormatException e) {
-            sender.sendMessage(ColorUtil.translateColors(lang.get("command-give-invalid-number")));
+            lang.send(sender, "command-give-invalid-number");
             return;
         }
         String keyId = com.baimo.attributeBinder.manager.CacheManager.DEFAULT_KEY;
@@ -132,7 +131,7 @@ public class AttributeBinderCommand implements CommandExecutor, TabCompleter {
         try {
             delta = Double.parseDouble(valueStr);
         } catch (NumberFormatException e) {
-            sender.sendMessage(ColorUtil.translateColors(lang.get("command-give-invalid-number")));
+            lang.send(sender, "command-give-invalid-number");
             return;
         }
         UUID uuid = target.getUniqueId();
@@ -140,27 +139,28 @@ public class AttributeBinderCommand implements CommandExecutor, TabCompleter {
         double oldVal = com.baimo.attributeBinder.manager.CacheManager.getAttribute(uuid, stat, keyId);
         double newVal = oldVal + delta;
         if (Double.compare(oldVal, newVal) == 0) {
-            sender.sendMessage(ColorUtil.translateColors(lang.get("command-no-change")));
+            lang.send(sender, "command-no-change");
             return;
         }
         com.baimo.attributeBinder.manager.CacheManager.setAttribute(uuid, stat, keyId, newVal, percent, memoryOnly, expireTicks);
         com.baimo.attributeBinder.manager.AttributeApplier.apply(uuid, stat, keyId, newVal, percent);
         String valStr = newVal + (percent ? "%" : "");
-        sender.sendMessage(ColorUtil.translateColors(lang.get("command-give-success")
-                .replace("{player}", target.getName())
-                .replace("{attribute}", stat)
-                .replace("{value}", valStr)
-                .replace("{key}", keyId)));
+        lang.send(sender, "command-give-success", Map.of(
+                "player", target.getName(),
+                "attribute", stat,
+                "value", valStr,
+                "key", keyId
+        ));
     }
 
     private void handleremove(CommandSender sender, String[] args) {
         if (args.length < 3 || args.length > 4) {
-            sender.sendMessage(ColorUtil.translateColors(lang.get("command-remove-usage")));
+            lang.send(sender, "command-remove-usage");
             return;
         }
         Player target = Bukkit.getPlayer(args[1]);
         if (target == null) {
-            sender.sendMessage(ColorUtil.translateColors(lang.get("error-player-not-found").replace("{player}", args[1])));
+            lang.send(sender, "error-player-not-found", Map.of("player", args[1]));
             return;
         }
         String stat = args[2];
@@ -168,7 +168,7 @@ public class AttributeBinderCommand implements CommandExecutor, TabCompleter {
         // 处理 remove key 子命令，删除指定 keyId 下所有属性
         if ("key".equalsIgnoreCase(stat)) {
             if (keyId == null) {
-                sender.sendMessage(ColorUtil.translateColors(lang.get("command-remove-usage")));
+                lang.send(sender, "command-remove-usage");
                 return;
             }
             // 遍历所有属性 statName，移除该 keyId 下对应属性
@@ -180,9 +180,10 @@ public class AttributeBinderCommand implements CommandExecutor, TabCompleter {
                         com.baimo.attributeBinder.manager.CacheManager.removeAttribute(uuidKey, statName, keyId);
                         AttributeApplier.remove(uuidKey, statName, keyId);
                     });
-            sender.sendMessage(ColorUtil.translateColors(lang.get("command-remove-key-success")
-                    .replace("{player}", target.getName())
-                    .replace("{key}", keyId)));
+            lang.send(sender, "command-remove-key-success", Map.of(
+                    "player", target.getName(),
+                    "key", keyId
+            ));
             return;
         }
         UUID uuid = target.getUniqueId();
@@ -190,7 +191,7 @@ public class AttributeBinderCommand implements CommandExecutor, TabCompleter {
             // 删除该玩家全部属性
             com.baimo.attributeBinder.manager.CacheManager.clear(uuid);
             AttributeApplier.removeAll(uuid);
-            sender.sendMessage(ColorUtil.translateColors(lang.get("command-remove-all-success").replace("{player}", target.getName())));
+            lang.send(sender, "command-remove-all-success", Map.of("player", target.getName()));
         } else {
             com.baimo.attributeBinder.manager.CacheManager.removeAttribute(uuid, stat, keyId);
             if (keyId == null) {
@@ -198,21 +199,22 @@ public class AttributeBinderCommand implements CommandExecutor, TabCompleter {
             } else {
                 AttributeApplier.remove(uuid, stat, keyId);
             }
-            sender.sendMessage(ColorUtil.translateColors(lang.get("command-remove-success")
-                    .replace("{player}", target.getName())
-                    .replace("{attribute}", stat)
-                    .replace("{key}", keyId == null ? "*" : keyId)));
+            lang.send(sender, "command-remove-success", Map.of(
+                    "player", target.getName(),
+                    "attribute", stat,
+                    "key", keyId == null ? "*" : keyId
+            ));
         }
     }
 
     private void handleList(CommandSender sender, String[] args) {
         if (args.length != 2) {
-            sender.sendMessage(ColorUtil.translateColors(lang.get("command-list-usage")));
+            lang.send(sender, "command-list-usage");
             return;
         }
         Player target = Bukkit.getPlayer(args[1]);
         if (target == null) {
-            sender.sendMessage(ColorUtil.translateColors(lang.get("error-player-not-found").replace("{player}", args[1])));
+            lang.send(sender, "error-player-not-found", Map.of("player", args[1]));
             return;
         }
         UUID uuid = target.getUniqueId();
@@ -226,16 +228,16 @@ public class AttributeBinderCommand implements CommandExecutor, TabCompleter {
         }));
 
         if (byKey.isEmpty()) {
-            sender.sendMessage(ColorUtil.translateColors(lang.get("command-list-empty").replace("{player}", target.getName())));
+            lang.send(sender, "command-list-empty", Map.of("player", target.getName()));
             return;
         }
 
         // 头部
-        sender.sendMessage(ColorUtil.translateColors(lang.get("command-list-header").replace("{player}", target.getName())));
+        sender.sendMessage(lang.get("command-list-header", Map.of("player", target.getName())));
 
         // 逐 keyId 输出明细
         byKey.forEach((keyId, attrMap) -> {
-            sender.sendMessage(ColorUtil.translateColors(lang.get("command-list-key-header").replace("{key}", keyId)));
+            sender.sendMessage(lang.get("command-list-key-header", Map.of("key", keyId)));
             attrMap.forEach((stat, entry) -> {
                 double value = entry.getValue();
                 boolean percent = entry.isPercent();
@@ -245,9 +247,7 @@ public class AttributeBinderCommand implements CommandExecutor, TabCompleter {
                 } else {
                     valStr = (value >= 0 ? "+" + value : String.valueOf(value));
                 }
-                sender.sendMessage(ColorUtil.translateColors(lang.get("command-list-item")
-                        .replace("{attribute}", stat)
-                        .replace("{value}", valStr)));
+                sender.sendMessage(lang.get("command-list-item", Map.of("attribute", stat, "value", valStr)));
             });
         });
     }
@@ -255,12 +255,12 @@ public class AttributeBinderCommand implements CommandExecutor, TabCompleter {
     private void handleReplace(CommandSender sender, String[] args) {
         // 参数格式: replace <玩家> <属性> <数值> [KeyID] [memoryOnly] <过期时长ticks>
         if (args.length < 5 || args.length > 7) {
-            sender.sendMessage(ColorUtil.translateColors(lang.get("command-replace-usage")));
+            lang.send(sender, "command-replace-usage");
             return;
         }
         Player target = Bukkit.getPlayer(args[1]);
         if (target == null) {
-            sender.sendMessage(ColorUtil.translateColors(lang.get("error-player-not-found").replace("{player}", args[1])));
+            lang.send(sender, "error-player-not-found", Map.of("player", args[1]));
             return;
         }
         String stat = args[2].toUpperCase();
@@ -276,7 +276,7 @@ public class AttributeBinderCommand implements CommandExecutor, TabCompleter {
         try {
             expireTicksR = Long.parseLong(args[lenR - 1]);
         } catch (NumberFormatException e) {
-            sender.sendMessage(ColorUtil.translateColors(lang.get("command-give-invalid-number")));
+            lang.send(sender, "command-give-invalid-number");
             return;
         }
         String keyIdR = com.baimo.attributeBinder.manager.CacheManager.DEFAULT_KEY;
@@ -296,36 +296,37 @@ public class AttributeBinderCommand implements CommandExecutor, TabCompleter {
         try {
             value = Double.parseDouble(valueStr);
         } catch (NumberFormatException e) {
-            sender.sendMessage(ColorUtil.translateColors(lang.get("command-give-invalid-number")));
+            lang.send(sender, "command-give-invalid-number");
             return;
         }
         UUID uuid = target.getUniqueId();
         // 检查旧值 与 新值 相同，则跳过
         double oldVal = com.baimo.attributeBinder.manager.CacheManager.getAttribute(uuid, stat, keyIdR);
         if (Double.compare(oldVal, value) == 0) {
-            sender.sendMessage(ColorUtil.translateColors("&e属性未改变，无需操作"));
+            sender.sendMessage(cn.drcomo.corelib.color.ColorUtil.translateColors("&e属性未改变，无需操作"));
             return;
         }
         com.baimo.attributeBinder.manager.CacheManager.setAttribute(uuid, stat, keyIdR, value, percent, memoryOnlyR, expireTicksR);
         com.baimo.attributeBinder.manager.AttributeApplier.apply(uuid, stat, keyIdR, value, percent);
         String valStr = value + (percent ? "%" : "");
-        sender.sendMessage(ColorUtil.translateColors(lang.get("command-replace-success")
-                .replace("{player}", target.getName())
-                .replace("{attribute}", stat)
-                .replace("{value}", valStr)
-                .replace("{key}", keyIdR)));
+        lang.send(sender, "command-replace-success", Map.of(
+                "player", target.getName(),
+                "attribute", stat,
+                "value", valStr,
+                "key", keyIdR
+        ));
     }
 
     private void handleHelp(CommandSender sender) {
         // 统一帮助信息，根据 lang.yml 中的各条 usage 组装
-        sender.sendMessage(ColorUtil.translateColors("&e========== AttributeBinder 帮助 =========="));
-        sender.sendMessage(ColorUtil.translateColors(lang.get("command-give-usage")));
-        sender.sendMessage(ColorUtil.translateColors(lang.get("command-replace-usage")));
-        sender.sendMessage(ColorUtil.translateColors(lang.get("command-remove-usage")));
-        sender.sendMessage(ColorUtil.translateColors(lang.get("command-list-usage")));
-        sender.sendMessage(ColorUtil.translateColors("%prefix% &e/attributebinder reload &7- 重载配置/语言".replace("%prefix%", lang.get("prefix"))));
-        sender.sendMessage(ColorUtil.translateColors("%prefix% &e/attributebinder flush &7- 立即保存数据".replace("%prefix%", lang.get("prefix"))));
-        sender.sendMessage(ColorUtil.translateColors("&e======================================"));
+        sender.sendMessage(cn.drcomo.corelib.color.ColorUtil.translateColors("&e========== AttributeBinder 帮助 =========="));
+        sender.sendMessage(lang.get("command-give-usage"));
+        sender.sendMessage(lang.get("command-replace-usage"));
+        sender.sendMessage(lang.get("command-remove-usage"));
+        sender.sendMessage(lang.get("command-list-usage"));
+        sender.sendMessage(cn.drcomo.corelib.color.ColorUtil.translateColors("%prefix% &e/attributebinder reload &7- 重载配置/语言".replace("%prefix%", lang.get("prefix"))));
+        sender.sendMessage(cn.drcomo.corelib.color.ColorUtil.translateColors("%prefix% &e/attributebinder flush &7- 立即保存数据".replace("%prefix%", lang.get("prefix"))));
+        sender.sendMessage(cn.drcomo.corelib.color.ColorUtil.translateColors("&e=============================="));
     }
 
     @Nullable
