@@ -1,29 +1,24 @@
 package com.baimo.attributeBinder.manager;
 
-import org.bukkit.configuration.InvalidConfigurationException;
-import org.bukkit.configuration.file.FileConfiguration;
-import org.bukkit.configuration.file.YamlConfiguration;
+import cn.drcomo.corelib.config.YamlUtil;
+import cn.drcomo.corelib.util.DebugUtil;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import com.baimo.attributeBinder.util.DebugUtil.LogLevel;
-
-import java.io.File;
-import java.io.IOException;
-
+/**
+ * ConfigManager —— 使用 YamlUtil 管理配置文件。
+ */
 public class ConfigManager {
     private static ConfigManager instance;
-    private final JavaPlugin plugin;
+    private final YamlUtil yaml;
 
-    private FileConfiguration config;
-
-    private ConfigManager(JavaPlugin plugin) {
-        this.plugin = plugin;
-        reload();
+    private ConfigManager(JavaPlugin plugin, DebugUtil logger) {
+        this.yaml = new YamlUtil(plugin, logger);
+        this.yaml.loadConfig("config");
     }
 
-    public static void init(JavaPlugin plugin) {
+    public static void init(JavaPlugin plugin, DebugUtil logger) {
         if (instance == null) {
-            instance = new ConfigManager(plugin);
+            instance = new ConfigManager(plugin, logger);
         }
     }
 
@@ -34,45 +29,29 @@ public class ConfigManager {
         return instance;
     }
 
-    public void reload() {
-        File file = new File(plugin.getDataFolder(), "config.yml");
-        if (!file.exists()) {
-            plugin.saveResource("config.yml", false);
-        }
-        config = new YamlConfiguration();
-        try {
-            config.load(file);
-        } catch (IOException | InvalidConfigurationException e) {
-            plugin.getLogger().severe("无法加载 config.yml: " + e.getMessage());
-        }
+    public void reload() { yaml.reloadConfig("config"); }
+
+    public YamlUtil getYaml() { return yaml; }
+
+    public DebugUtil.LogLevel getLogLevel() {
+        String level = yaml.getString("config", "debug-level", "INFO");
+        return DebugUtil.LogLevel.fromString(level, DebugUtil.LogLevel.INFO);
     }
 
-    public FileConfiguration getRaw() {
-        return config;
-    }
-
-    /* ===================== 对外快捷访问 ===================== */
-
-    public LogLevel getLogLevel() {
-        return LogLevel.fromString(config.getString("debug-level", "INFO"), LogLevel.INFO);
-    }
-
-    /* ---------- 数据库 ---------- */
     public boolean useMySql() {
-        // 兼容旧 key 和新 storage.type
-        if (config.contains("database.use-mysql")) {
-            return config.getBoolean("database.use-mysql");
+        if (yaml.contains("config", "database.use-mysql")) {
+            return yaml.getBoolean("config", "database.use-mysql", false);
         }
-        return "mysql".equalsIgnoreCase(config.getString("storage.type", "sqlite"));
+        return "mysql".equalsIgnoreCase(yaml.getString("config", "storage.type", "sqlite"));
     }
 
-    public String getSqliteFile() { return config.getString("storage.sqlite-file", "attributes.db"); }
+    public String getSqliteFile() { return yaml.getString("config", "storage.sqlite-file", "attributes.db"); }
 
-    public String getMySqlHost() { return config.getString("storage.mysql.host", config.getString("database.host", "localhost")); }
-    public int getMySqlPort() { return config.getInt("storage.mysql.port", config.getInt("database.port", 3306)); }
-    public String getMySqlDatabase() { return config.getString("storage.mysql.database", config.getString("database.database", "minecraft")); }
-    public String getMySqlUser() { return config.getString("storage.mysql.user", config.getString("database.user", "root")); }
-    public String getMySqlPassword() { return config.getString("storage.mysql.password", config.getString("database.password", "")); }
+    public String getMySqlHost() { return yaml.getString("config", "storage.mysql.host", yaml.getString("config", "database.host", "localhost")); }
+    public int getMySqlPort() { return yaml.getInt("config", "storage.mysql.port", yaml.getInt("config", "database.port", 3306)); }
+    public String getMySqlDatabase() { return yaml.getString("config", "storage.mysql.database", yaml.getString("config", "database.database", "minecraft")); }
+    public String getMySqlUser() { return yaml.getString("config", "storage.mysql.user", yaml.getString("config", "database.user", "root")); }
+    public String getMySqlPassword() { return yaml.getString("config", "storage.mysql.password", yaml.getString("config", "database.password", "")); }
 
-    public int getSyncIntervalMinutes() { return config.getInt("sync-interval-minutes", 5); }
-} 
+    public int getSyncIntervalMinutes() { return yaml.getInt("config", "sync-interval-minutes", 5); }
+}

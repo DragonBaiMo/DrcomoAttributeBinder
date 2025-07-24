@@ -1,7 +1,6 @@
 package com.baimo.attributeBinder.manager;
 
-import com.baimo.attributeBinder.util.DebugUtil;
-import com.baimo.attributeBinder.util.DebugUtil.LogLevel;
+import cn.drcomo.corelib.util.DebugUtil;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
@@ -19,9 +18,9 @@ public class JdbcStorageManager implements StorageManager {
     private final DebugUtil debug;
     private HikariDataSource dataSource;
 
-    public JdbcStorageManager(JavaPlugin plugin) {
+    public JdbcStorageManager(JavaPlugin plugin, DebugUtil logger) {
         this.plugin = plugin;
-        debug = new DebugUtil(plugin, ConfigManager.get().getLogLevel());
+        this.debug = logger;
         initPool();
         createTableIfNotExists();
     }

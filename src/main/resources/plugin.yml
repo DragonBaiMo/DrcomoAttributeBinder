@@ -2,7 +2,7 @@ name: AttributeBinder
 version: '1.0'
 main: com.baimo.attributeBinder.AttributeBinder
 api-version: '1.20'
-depend: [PlaceholderAPI, MythicLib, MMOItems]
+depend: [DrcomoCoreLib, PlaceholderAPI, MythicLib, MMOItems]
 commands:
   attributebinder:
     description: 属性加成管理
