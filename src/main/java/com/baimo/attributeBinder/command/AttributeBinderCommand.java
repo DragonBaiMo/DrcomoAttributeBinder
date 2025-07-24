@@ -107,6 +107,10 @@ public class AttributeBinderCommand implements CommandExecutor, TabCompleter {
             List<String> players = Bukkit.getOnlinePlayers().stream()
                     .map(Player::getName)
                     .collect(Collectors.toList());
+            // 为 remove 命令添加 * 选项
+            if ("remove".equals(sub)) {
+                players.add("*");
+            }
             return StringUtil.copyPartialMatches(args[1], players, new ArrayList<>()).stream()
                     .sorted()
                     .collect(Collectors.toList());
@@ -222,18 +226,62 @@ public class AttributeBinderCommand implements CommandExecutor, TabCompleter {
 
     /**
      * 处理 remove 子命令
-     * 参数格式: remove <玩家> <属性|all|key> [KeyID]
+     * 参数格式: remove <玩家|*> <属性|all|key> [KeyID]
      */
     private void handleRemove(CommandSender sender, String[] args) {
         if (args.length < 3 || args.length > 4) {
             lang.send(sender, "command-remove-usage");
             return;
         }
-        Player target = getPlayer(args[1], sender);
-        if (target == null) return;
-
+        
+        String playerName = args[1];
         String stat = args[2];
         String keyId = args.length == 4 ? args[3] : null;
+        
+        // 检查是否为遍历所有在线玩家
+        if ("*".equals(playerName)) {
+            Collection<? extends Player> onlinePlayers = Bukkit.getOnlinePlayers();
+            if (onlinePlayers.isEmpty()) {
+                lang.send(sender, "error-no-online-players");
+                return;
+            }
+            
+            int processedCount = 0;
+            for (Player target : onlinePlayers) {
+                if (removeAttributesForPlayer(target, stat, keyId)) {
+                    processedCount++;
+                }
+            }
+            
+            lang.send(sender, "command-remove-all-players-success", Map.of(
+                    "count", String.valueOf(processedCount),
+                    "attribute", stat,
+                    "key", keyId == null ? "*" : keyId
+            ));
+            return;
+        }
+        
+        // 单个玩家处理
+        Player target = getPlayer(playerName, sender);
+        if (target == null) return;
+        
+        if (removeAttributesForPlayer(target, stat, keyId)) {
+            lang.send(sender, "command-remove-success", Map.of(
+                    "player", target.getName(),
+                    "attribute", stat,
+                    "key", keyId == null ? "*" : keyId
+            ));
+        }
+    }
+    
+    /**
+     * 为指定玩家移除属性的核心逻辑
+     * @param target 目标玩家
+     * @param stat 属性类型
+     * @param keyId 键ID
+     * @return 是否成功处理
+     */
+    private boolean removeAttributesForPlayer(Player target, String stat, String keyId) {
         UUID uuid = target.getUniqueId();
         
         // 获取存储管理器实例
@@ -243,8 +291,7 @@ public class AttributeBinderCommand implements CommandExecutor, TabCompleter {
         // 删除指定 KeyID 下所有属性
         if ("key".equalsIgnoreCase(stat)) {
             if (keyId == null) {
-                lang.send(sender, "command-remove-usage");
-                return;
+                return false;
             }
             CacheManager.snapshot()
                     .getOrDefault(uuid, Collections.emptyMap())
@@ -253,23 +300,18 @@ public class AttributeBinderCommand implements CommandExecutor, TabCompleter {
             AttributeApplier.removeKey(uuid, keyId);
             // 同步删除数据库中的数据
             storage.deleteAttributesByKey(uuid, keyId);
-            lang.send(sender, "command-remove-key-success", Map.of(
-                    "player", target.getName(),
-                    "key", keyId
-            ));
-            return;
+            return true;
         }
+        
         // 删除玩家全部属性
         if ("all".equalsIgnoreCase(stat)) {
             CacheManager.clear(uuid);
             AttributeApplier.removeAll(uuid);
             // 同步删除数据库中的数据
             storage.deleteAllAttributes(uuid);
-            lang.send(sender, "command-remove-all-success", Map.of(
-                    "player", target.getName()
-            ));
-            return;
+            return true;
         }
+        
         // 删除指定属性（所有 KeyID 或 指定 KeyID）
         if (keyId == null) {
             CacheManager.snapshot()
@@ -286,11 +328,7 @@ public class AttributeBinderCommand implements CommandExecutor, TabCompleter {
             // 同步删除数据库中的数据
             storage.deleteAttribute(uuid, stat, keyId);
         }
-        lang.send(sender, "command-remove-success", Map.of(
-                "player", target.getName(),
-                "attribute", stat,
-                "key", keyId == null ? "*" : keyId
-        ));
+        return true;
     }
 
     /**

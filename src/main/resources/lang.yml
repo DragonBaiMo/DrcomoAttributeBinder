@@ -2,6 +2,7 @@ prefix: "&a[AttributeBinder]&r "
 
 error-no-permission: "{prefix} &c你没有权限执行此指令。"
 error-player-not-found: "{prefix} &c玩家 {player} 不在线。"
+error-no-online-players: "{prefix} &c当前没有在线玩家。"
 
 command-main-usage: "{prefix} &e用法: /attributebinder <give|remove|list|reload|flush>"
 command-give-usage: "{prefix} &e用法: /attributebinder give <玩家> <属性> <数值> [KeyID] [memoryOnly] [过期时长(ticks)]"
@@ -18,6 +19,7 @@ command-give-success: "{prefix} &a已为 &b{player} &a的 &d{key} &a设置 &e{at
 
 command-remove-success: "{prefix} &a已移除 &b{player} &a的 &d{key} &e{attribute} 属性"
 command-remove-all-success: "{prefix} &a已移除 &b{player} &a的所有属性加成"
+command-remove-all-players-success: "{prefix} &a已为 {count} 位在线玩家移除 &d{key} &e{attribute} 属性"
 
 command-list-header: "{prefix} &e{player} 当前属性加成："
 command-list-item: "&6- {attribute}：{value}"
