@@ -81,21 +81,9 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>net.objecthunter</groupId>
-            <artifactId>exp4j</artifactId>
-            <version>0.4.8</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
             <groupId>org.jetbrains</groupId>
             <artifactId>annotations</artifactId>
             <version>24.1.0</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>me.clip</groupId>
-            <artifactId>placeholderapi</artifactId>
-            <version>2.11.6</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
@@ -103,6 +91,12 @@
             <artifactId>HikariCP</artifactId>
             <version>6.2.1</version>
             <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>cn.drcomo</groupId>
+            <artifactId>DrcomoCoreLib</artifactId>
+            <version>1.0</version>
+            <scope>provided</scope>
         </dependency>
     </dependencies>
 </project>
