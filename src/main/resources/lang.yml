@@ -1,0 +1,29 @@
+prefix: "&a[AttributeBinder]&r "
+
+messages:
+  error-no-permission: "%prefix% &c你没有权限执行此指令。"
+  error-player-not-found: "%prefix% &c玩家 {player} 不在线。"
+
+  command-main-usage: "%prefix% &e用法: /attributebinder <give|remove|list|reload|flush>"
+  command-give-usage: "%prefix% &e用法: /attributebinder give <玩家> <属性> <数值> [KeyID] [memoryOnly] [过期时长(ticks)]"
+  command-remove-usage: "%prefix% &e用法: /attributebinder remove <玩家> <属性ID|all|key> [KeyID]"
+  command-remove-key-success: "%prefix% &e已删除玩家 {player} 的 Key {key} 下所有属性"
+  command-list-usage: "%prefix% &e用法: /attributebinder list <玩家>"
+  command-replace-usage: "%prefix% &e用法: /attributebinder replace <玩家> <属性> <数值> [KeyID] [memoryOnly] [过期时长(ticks)]"
+
+  command-reload-success: "%prefix% &a插件配置与语言文件已重载！"
+  command-flush-success: "%prefix% &a已强制写入数据库并清理缓存。"
+
+  command-give-invalid-number: "%prefix% &c数值格式非法，请输入有效数字"
+  command-give-success: "%prefix% &a已为 &b{player} &a的 &d{key} &a设置 &e{attribute} = {value}"
+
+  command-remove-success: "%prefix% &a已移除 &b{player} &a的 &d{key} &e{attribute} 属性"
+  command-remove-all-success: "%prefix% &a已移除 &b{player} &a的所有属性加成"
+
+  command-list-header: "%prefix% &e{player} 当前属性加成："
+  command-list-item: "&6- {attribute}：{value}"
+  command-list-empty: "%prefix% &c{player} 当前无任何属性加成"
+  command-list-key-header: "&d{key}:"
+
+  command-replace-success: "%prefix% &a已将 &b{player} &a的 &d{key} &e{attribute} 设置为 {value}"
+  command-no-change: "%prefix% &e属性未改变，无需操作"

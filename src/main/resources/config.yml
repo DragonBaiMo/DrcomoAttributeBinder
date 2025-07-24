@@ -1,0 +1,19 @@
+debug-level: INFO
+
+storage:
+  # 可选项: sqlite | mysql
+  type: sqlite
+
+  # SQLite 专属设置
+  sqlite-file: attributebinder.db
+
+  # MySQL 专属设置
+  mysql:
+    host: localhost
+    port: 3306
+    database: attributebinder
+    user: root
+    password: password
+
+# 内存缓存自动写库周期（分钟）
+sync-interval-minutes: 10 
