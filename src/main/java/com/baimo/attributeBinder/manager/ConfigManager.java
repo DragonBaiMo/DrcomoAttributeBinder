@@ -39,19 +39,45 @@ public class ConfigManager {
     }
 
     public boolean useMySql() {
-        if (yaml.contains("config", "database.use-mysql")) {
-            return yaml.getBoolean("config", "database.use-mysql", false);
-        }
-        return "mysql".equalsIgnoreCase(yaml.getString("config", "storage.type", "sqlite"));
+        // 判断存储类型，仅以 storage.type 字段决定是否使用 MySQL
+        return "mysql".equalsIgnoreCase(
+            yaml.getString("config", "storage.type", "sqlite")
+        );
     }
 
-    public String getSqliteFile() { return yaml.getString("config", "storage.sqlite-file", "attributes.db"); }
+    public String getSqliteFile() {
+        // SQLite 数据库文件名，默认为示例配置中的 attributebinder.db
+        return yaml.getString("config", "storage.sqlite-file", "attributebinder.db");
+    }
 
-    public String getMySqlHost() { return yaml.getString("config", "storage.mysql.host", yaml.getString("config", "database.host", "localhost")); }
-    public int getMySqlPort() { return yaml.getInt("config", "storage.mysql.port", yaml.getInt("config", "database.port", 3306)); }
-    public String getMySqlDatabase() { return yaml.getString("config", "storage.mysql.database", yaml.getString("config", "database.database", "minecraft")); }
-    public String getMySqlUser() { return yaml.getString("config", "storage.mysql.user", yaml.getString("config", "database.user", "root")); }
-    public String getMySqlPassword() { return yaml.getString("config", "storage.mysql.password", yaml.getString("config", "database.password", "")); }
+    /** MySQL 主机 */
+    public String getMySqlHost() {
+        return yaml.getString("config", "storage.mysql.host", "localhost");
+    }
+    /** MySQL 端口 */
+    public int getMySqlPort() {
+        return yaml.getInt("config", "storage.mysql.port", 3306);
+    }
+    /** MySQL 数据库名 */
+    public String getMySqlDatabase() {
+        return yaml.getString("config", "storage.mysql.database", "attributebinder");
+    }
+    /** MySQL 用户名 */
+    public String getMySqlUser() {
+        return yaml.getString("config", "storage.mysql.user", "root");
+    }
+    /** MySQL 密码 */
+    public String getMySqlPassword() {
+        return yaml.getString("config", "storage.mysql.password", "");
+    }
 
-    public int getSyncIntervalMinutes() { return yaml.getInt("config", "sync-interval-minutes", 5); }
+    /** 同步间隔（分钟），对应 config.yml 中 sync-interval-minutes */
+    public int getSyncIntervalMinutes() {
+        return yaml.getInt("config", "sync-interval-minutes", 10);
+    }
+    
+    /** 获取自定义表名，默认为插件名 */
+    public String getTableName() {
+        return yaml.getString("config", "storage.table-name", "attributebinder");
+    }
 }

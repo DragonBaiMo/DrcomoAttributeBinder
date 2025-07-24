@@ -1,43 +1,82 @@
 package com.baimo.attributeBinder.manager;
 
 import cn.drcomo.corelib.util.DebugUtil;
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import com.zaxxer.hikari.HikariConfig;
-import com.zaxxer.hikari.HikariDataSource;
 
 public class JdbcStorageManager implements StorageManager {
 
     private final JavaPlugin plugin;
     private final DebugUtil debug;
     private HikariDataSource dataSource;
+    private final String tableName;
+    
+    // SQL语句模板，将在构造函数中替换表名
+    private final String CREATE_TABLE_SQL;
+    private final String REPLACE_SQL;
+    private final String DELETE_SQL;
+    private final String DELETE_STAT_SQL;
+    private final String DELETE_ATTRIBUTE_SQL;
+    private final String DELETE_KEY_SQL;
+    private final String SELECT_SQL;
+    private final String ALTER_TABLE_SQL;
 
     public JdbcStorageManager(JavaPlugin plugin, DebugUtil logger) {
         this.plugin = plugin;
         this.debug = logger;
+        this.tableName = ConfigManager.get().getTableName();
+        
+        // 初始化SQL语句，使用配置的表名
+        this.CREATE_TABLE_SQL = "CREATE TABLE IF NOT EXISTS " + tableName + " ("
+                + "uuid VARCHAR(36) NOT NULL,"
+                + "stat VARCHAR(64) NOT NULL,"
+                + "key_id VARCHAR(64) NOT NULL,"
+                + "value REAL NOT NULL,"
+                + "percent INTEGER NOT NULL,"
+                + "expire_time BIGINT DEFAULT 0,"
+                + "PRIMARY KEY(uuid, stat, key_id)"
+                + ")";
+        this.REPLACE_SQL = "REPLACE INTO " + tableName + "(uuid, stat, key_id, value, percent, expire_time) VALUES(?, ?, ?, ?, ?, ?)";
+        this.DELETE_SQL = "DELETE FROM " + tableName + " WHERE uuid = ?";
+        this.DELETE_STAT_SQL = "DELETE FROM " + tableName + " WHERE uuid = ? AND stat = ?";
+        this.DELETE_ATTRIBUTE_SQL = "DELETE FROM " + tableName + " WHERE uuid = ? AND stat = ? AND key_id = ?";
+        this.DELETE_KEY_SQL = "DELETE FROM " + tableName + " WHERE uuid = ? AND key_id = ?";
+        this.SELECT_SQL = "SELECT stat, key_id, value, percent, expire_time FROM " + tableName + " WHERE uuid = ?";
+        this.ALTER_TABLE_SQL = "ALTER TABLE " + tableName + " ADD COLUMN expire_time BIGINT DEFAULT 0";
+        
         initPool();
         createTableIfNotExists();
     }
 
+    /**
+     * 初始化Hikari连接池，根据配置选择MySQL或SQLite
+     */
     private void initPool() {
         HikariConfig cfg = new HikariConfig();
         if (ConfigManager.get().useMySql()) {
-            String jdbc = String.format("jdbc:mysql://%s:%d/%s?useSSL=false&characterEncoding=utf8",
+            String jdbcUrl = String.format("jdbc:mysql://%s:%d/%s?useSSL=false&characterEncoding=utf8",
                     ConfigManager.get().getMySqlHost(),
                     ConfigManager.get().getMySqlPort(),
                     ConfigManager.get().getMySqlDatabase());
-            cfg.setJdbcUrl(jdbc);
+            cfg.setJdbcUrl(jdbcUrl);
             cfg.setUsername(ConfigManager.get().getMySqlUser());
             cfg.setPassword(ConfigManager.get().getMySqlPassword());
-            cfg.addDataSourceProperty("cachePrepStmts","true");
-            cfg.addDataSourceProperty("prepStmtCacheSize","250");
-            cfg.addDataSourceProperty("prepStmtCacheSqlLimit","2048");
+            cfg.addDataSourceProperty("cachePrepStmts", "true");
+            cfg.addDataSourceProperty("prepStmtCacheSize", "250");
+            cfg.addDataSourceProperty("prepStmtCacheSqlLimit", "2048");
         } else {
             File dbFile = new File(plugin.getDataFolder(), ConfigManager.get().getSqliteFile());
             cfg.setJdbcUrl("jdbc:sqlite:" + dbFile.getAbsolutePath());
@@ -46,17 +85,19 @@ public class JdbcStorageManager implements StorageManager {
         dataSource = new HikariDataSource(cfg);
     }
 
+    /**
+     * 创建表格，如果不存在则新建，并确保expire_time字段存在
+     */
     private void createTableIfNotExists() {
-        String sql = "CREATE TABLE IF NOT EXISTS player_attributes (" +
-                "uuid TEXT NOT NULL," +
-                "stat TEXT NOT NULL," +
-                "key_id TEXT NOT NULL," +
-                "value REAL NOT NULL," +
-                "percent INTEGER NOT NULL," +
-                "PRIMARY KEY(uuid, stat, key_id)" +
-                ")";
-        try (Connection conn = dataSource.getConnection(); Statement st = conn.createStatement()) {
-            st.execute(sql);
+        try (Connection conn = getConnection();
+             Statement st = conn.createStatement()) {
+            st.execute(CREATE_TABLE_SQL);
+            // 为现有表添加expire_time字段（如果不存在）
+            try {
+                st.execute(ALTER_TABLE_SQL);
+            } catch (SQLException e) {
+                // 字段已存在，忽略错误
+            }
         } catch (SQLException e) {
             plugin.getLogger().severe("无法创建表: " + e.getMessage());
         }
@@ -65,8 +106,8 @@ public class JdbcStorageManager implements StorageManager {
     @Override
     public Map<String, Map<String, CacheManager.Entry>> loadAttributes(UUID uuid) {
         Map<String, Map<String, CacheManager.Entry>> map = new HashMap<>();
-        String sql = "SELECT stat, key_id, value, percent FROM player_attributes WHERE uuid = ?";
-        try (Connection conn = dataSource.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(SELECT_SQL)) {
             ps.setString(1, uuid.toString());
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
@@ -74,8 +115,24 @@ public class JdbcStorageManager implements StorageManager {
                     String keyId = rs.getString(2);
                     double value = rs.getDouble(3);
                     boolean percent = rs.getInt(4) == 1;
+                    long expireTime = rs.getLong(5);
+                    
+                    // 将绝对过期时间转换为相对时间（剩余ticks）
+                    long expireTicks = 0;
+                    if (expireTime > 0) {
+                        long currentTime = System.currentTimeMillis();
+                        if (expireTime > currentTime) {
+                            expireTicks = (expireTime - currentTime) / 50; // 转换为ticks（1tick=50ms）
+                        }
+                        // 如果已过期，expireTicks保持为0，会在下次清理时被移除
+                    }
+                    
+                    CacheManager.Entry entry = new CacheManager.Entry(value, percent);
+                    entry.setExpireTicks(expireTicks);
+                    // 从数据库加载的属性都不是memoryOnly的
+                    entry.setMemoryOnly(false);
                     map.computeIfAbsent(stat, k -> new ConcurrentHashMap<>())
-                        .put(keyId, new CacheManager.Entry(value, percent));
+                       .put(keyId, entry);
                 }
             }
         } catch (SQLException e) {
@@ -86,17 +143,20 @@ public class JdbcStorageManager implements StorageManager {
 
     @Override
     public void saveAttributes(UUID uuid, Map<String, Map<String, CacheManager.Entry>> attributes) {
-        if (attributes == null) return;
-        String sql = "REPLACE INTO player_attributes(uuid, stat, key_id, value, percent) VALUES(?, ?, ?, ?, ?)";
-        try (Connection conn = dataSource.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+        if (attributes == null) {
+            return;
+        }
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(REPLACE_SQL)) {
             for (Map.Entry<String, Map<String, CacheManager.Entry>> statEntry : attributes.entrySet()) {
+                String stat = statEntry.getKey();
                 for (Map.Entry<String, CacheManager.Entry> keyEntry : statEntry.getValue().entrySet()) {
-                    ps.setString(1, uuid.toString());
-                    ps.setString(2, statEntry.getKey());
-                    ps.setString(3, keyEntry.getKey());
-                    ps.setDouble(4, keyEntry.getValue().getValue());
-                    ps.setInt(5, keyEntry.getValue().isPercent()?1:0);
-                    ps.addBatch();
+                    CacheManager.Entry entry = keyEntry.getValue();
+                    if (entry.isMemoryOnly()) {
+                        // 仅内存属性不持久化
+                        continue;
+                    }
+                    fillStatement(ps, uuid.toString(), stat, keyEntry.getKey(), entry);
                 }
             }
             ps.executeBatch();
@@ -109,37 +169,151 @@ public class JdbcStorageManager implements StorageManager {
     public void saveAll(Map<UUID, Map<String, Map<String, CacheManager.Entry>>> all) {
         Connection conn = null;
         try {
-            conn = dataSource.getConnection();
+            conn = getConnection();
             conn.setAutoCommit(false);
-            String sql = "REPLACE INTO player_attributes(uuid, stat, key_id, value, percent) VALUES(?,?,?,?,?)";
-            try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                for (Map.Entry<UUID, Map<String, Map<String, CacheManager.Entry>>> player : all.entrySet()) {
-                    for (Map.Entry<String, Map<String, CacheManager.Entry>> statEntry : player.getValue().entrySet()) {
-                        for (Map.Entry<String, CacheManager.Entry> keyEntry : statEntry.getValue().entrySet()) {
-                            ps.setString(1, player.getKey().toString());
-                            ps.setString(2, statEntry.getKey());
-                            ps.setString(3, keyEntry.getKey());
-                            ps.setDouble(4, keyEntry.getValue().getValue());
-                            ps.setInt(5, keyEntry.getValue().isPercent()?1:0);
-                            ps.addBatch();
-                        }
-                    }
-                }
-                ps.executeBatch();
-            }
+
+            // 先删除所有缓存快照中的玩家记录
+            batchDeleteByUuid(conn, all.keySet());
+
+            // 批量插入当前缓存中非 memoryOnly 的持久化属性
+            batchReplaceEntries(conn, all);
+
             conn.commit();
         } catch (SQLException e) {
             debug.error("批量保存失败: " + e.getMessage());
-            try { if (conn != null) conn.rollback(); } catch (SQLException ignored) {}
+            if (conn != null) {
+                try {
+                    conn.rollback();
+                } catch (SQLException ignored) {
+                }
+            }
         } finally {
             if (conn != null) {
-                try { conn.setAutoCommit(true); conn.close(); } catch (SQLException ignored) {}
+                try {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                } catch (SQLException ignored) {
+                }
             }
         }
     }
 
     @Override
-    public void close() {
-        dataSource.close();
+    public void deleteAttribute(UUID uuid, String stat, String keyId) {
+        if (keyId == null) {
+            // 删除该stat的所有keyId
+            try (Connection conn = getConnection();
+                 PreparedStatement ps = conn.prepareStatement(DELETE_STAT_SQL)) {
+                ps.setString(1, uuid.toString());
+                ps.setString(2, stat.toUpperCase());
+                ps.executeUpdate();
+            } catch (SQLException e) {
+                debug.error("删除玩家属性失败: " + e.getMessage());
+            }
+        } else {
+            // 删除指定的stat和keyId
+            try (Connection conn = getConnection();
+                 PreparedStatement ps = conn.prepareStatement(DELETE_ATTRIBUTE_SQL)) {
+                ps.setString(1, uuid.toString());
+                ps.setString(2, stat.toUpperCase());
+                ps.setString(3, keyId);
+                ps.executeUpdate();
+            } catch (SQLException e) {
+                debug.error("删除玩家属性失败: " + e.getMessage());
+            }
+        }
     }
-} 
+
+    @Override
+    public void deleteAttributesByKey(UUID uuid, String keyId) {
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(DELETE_KEY_SQL)) {
+            ps.setString(1, uuid.toString());
+            ps.setString(2, keyId);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            debug.error("删除玩家keyId属性失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public void deleteAllAttributes(UUID uuid) {
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(DELETE_SQL)) {
+            ps.setString(1, uuid.toString());
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            debug.error("删除玩家所有属性失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public void close() {
+        if (dataSource != null) {
+            dataSource.close();
+        }
+    }
+
+    /**
+     * 获取数据库连接
+     */
+    private Connection getConnection() throws SQLException {
+        return dataSource.getConnection();
+    }
+
+    /**
+     * 填充PreparedStatement并添加到批处理中
+     */
+    private void fillStatement(PreparedStatement ps, String uuidStr, String stat, String keyId, CacheManager.Entry entry) throws SQLException {
+        ps.setString(1, uuidStr);
+        ps.setString(2, stat);
+        ps.setString(3, keyId);
+        ps.setDouble(4, entry.getValue());
+        ps.setInt(5, entry.isPercent() ? 1 : 0);
+        
+        // 将相对时间转换为绝对过期时间
+        long expireTime = 0;
+        if (entry.getExpireTicks() > 0) {
+            expireTime = System.currentTimeMillis() + (entry.getExpireTicks() * 50); // 转换为毫秒
+        }
+        ps.setLong(6, expireTime);
+        
+        ps.addBatch();
+    }
+
+    /**
+     * 批量删除指定UUID的所有记录
+     */
+    private void batchDeleteByUuid(Connection conn, Set<UUID> uuids) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(DELETE_SQL)) {
+            for (UUID id : uuids) {
+                ps.setString(1, id.toString());
+                ps.addBatch();
+            }
+            ps.executeBatch();
+        }
+    }
+
+    /**
+     * 批量替换所有持久化条目，跳过 memoryOnly 的属性
+     */
+    private void batchReplaceEntries(Connection conn, Map<UUID, Map<String, Map<String, CacheManager.Entry>>> all) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(REPLACE_SQL)) {
+            for (Map.Entry<UUID, Map<String, Map<String, CacheManager.Entry>>> player : all.entrySet()) {
+                String uuidStr = player.getKey().toString();
+                for (Map.Entry<String, Map<String, CacheManager.Entry>> statEntry : player.getValue().entrySet()) {
+                    String stat = statEntry.getKey();
+                    for (Map.Entry<String, CacheManager.Entry> keyEntry : statEntry.getValue().entrySet()) {
+                        CacheManager.Entry entry = keyEntry.getValue();
+                        if (entry.isMemoryOnly()) {
+                            // 仅内存周期属性不持久化
+                            continue;
+                        }
+                        fillStatement(ps, uuidStr, stat, keyEntry.getKey(), entry);
+                    }
+                }
+            }
+            ps.executeBatch();
+        }
+    }
+}

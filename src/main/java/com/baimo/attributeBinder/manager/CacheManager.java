@@ -48,6 +48,10 @@ public class CacheManager {
 
     // 主缓存：UUID -> stat -> keyId -> Entry
     private static final Map<UUID, ConcurrentHashMap<String, ConcurrentHashMap<String, Entry>>> CACHE = new ConcurrentHashMap<>();
+    /**
+     * 过期清理调用间隔（ticks），每次减少对应ticks数
+     */
+    public static final int CLEANUP_INTERVAL_TICKS = 5;
 
     /* ---------------- 私有工具方法 ---------------- */
     private static ConcurrentHashMap<String, ConcurrentHashMap<String, Entry>> getStatMap(UUID uuid) {
@@ -153,6 +157,59 @@ public class CacheManager {
         });
         return Collections.unmodifiableMap(copy);
     }
+    /**
+     * 获取指定 keyId 的剩余过期时长（ticks），不存在或未设置返回 0。
+     */
+    public static long getExpireTicks(UUID uuid, String stat, String keyId) {
+        Entry e = getKeyMap(uuid, stat).get(keyId);
+        return (e != null) ? e.getExpireTicks() : 0L;
+    }
+    /**
+     * 清理过期属性（expireTicks 持续递减，<=0 时移除）
+     * @param storage 存储管理器，用于同步删除数据库记录
+     */
+    public static void cleanupExpired(StorageManager storage) {
+        // 每次调用递减 CLEANUP_INTERVAL_TICKS
+        for (UUID uuid : new ArrayList<>(CACHE.keySet())) {
+            ConcurrentHashMap<String, ConcurrentHashMap<String, Entry>> statMap = CACHE.get(uuid);
+            if (statMap == null) continue;
+            for (String stat : new ArrayList<>(statMap.keySet())) {
+                ConcurrentHashMap<String, Entry> keyMap = statMap.get(stat);
+                for (String keyId : new ArrayList<>(keyMap.keySet())) {
+                    Entry entry = keyMap.get(keyId);
+                    if (entry.getExpireTicks() > 0) {
+                        long ticks = entry.getExpireTicks() - CLEANUP_INTERVAL_TICKS;
+                        if (ticks <= 0) {
+                            keyMap.remove(keyId);
+                            // 同步移除应用
+                            com.baimo.attributeBinder.manager.AttributeApplier.remove(uuid, stat, keyId);
+                            // 同步删除数据库记录（仅删除非memoryOnly的属性）
+                            if (!entry.isMemoryOnly() && storage != null) {
+                                storage.deleteAttribute(uuid, stat, keyId);
+                            }
+                        } else {
+                            entry.setExpireTicks(ticks);
+                        }
+                    }
+                }
+                if (keyMap.isEmpty()) {
+                    statMap.remove(stat);
+                }
+            }
+            if (statMap.isEmpty()) {
+                CACHE.remove(uuid);
+            }
+        }
+    }
+
+    /**
+     * 清理过期属性（兼容旧接口，不同步数据库）
+     * @deprecated 建议使用 cleanupExpired(StorageManager) 以确保数据库一致性
+     */
+    @Deprecated
+    public static void cleanupExpired() {
+        cleanupExpired(null);
+    }
 
     /**
      * (兼容旧代码) 返回〈stat, 总和〉Map。
@@ -160,4 +217,4 @@ public class CacheManager {
     public static Map<String, Double> getAttributes(UUID uuid) {
         return aggregatedAttributes(uuid);
     }
-} 
+}

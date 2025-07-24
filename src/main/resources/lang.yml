@@ -1,29 +1,102 @@
 prefix: "&a[AttributeBinder]&r "
 
-messages:
-  error-no-permission: "%prefix% &c你没有权限执行此指令。"
-  error-player-not-found: "%prefix% &c玩家 {player} 不在线。"
+error-no-permission: "{prefix} &c你没有权限执行此指令。"
+error-player-not-found: "{prefix} &c玩家 {player} 不在线。"
 
-  command-main-usage: "%prefix% &e用法: /attributebinder <give|remove|list|reload|flush>"
-  command-give-usage: "%prefix% &e用法: /attributebinder give <玩家> <属性> <数值> [KeyID] [memoryOnly] [过期时长(ticks)]"
-  command-remove-usage: "%prefix% &e用法: /attributebinder remove <玩家> <属性ID|all|key> [KeyID]"
-  command-remove-key-success: "%prefix% &e已删除玩家 {player} 的 Key {key} 下所有属性"
-  command-list-usage: "%prefix% &e用法: /attributebinder list <玩家>"
-  command-replace-usage: "%prefix% &e用法: /attributebinder replace <玩家> <属性> <数值> [KeyID] [memoryOnly] [过期时长(ticks)]"
+command-main-usage: "{prefix} &e用法: /attributebinder <give|remove|list|reload|flush>"
+command-give-usage: "{prefix} &e用法: /attributebinder give <玩家> <属性> <数值> [KeyID] [memoryOnly] [过期时长(ticks)]"
+command-remove-usage: "{prefix} &e用法: /attributebinder remove <玩家> <属性ID|all|key> [KeyID]"
+command-remove-key-success: "{prefix} &e已删除玩家 {player} 的 Key {key} 下所有属性"
+command-list-usage: "{prefix} &e用法: /attributebinder list <玩家>"
+command-replace-usage: "{prefix} &e用法: /attributebinder replace <玩家> <属性> <数值> [KeyID] [memoryOnly] [过期时长(ticks)]"
 
-  command-reload-success: "%prefix% &a插件配置与语言文件已重载！"
-  command-flush-success: "%prefix% &a已强制写入数据库并清理缓存。"
+command-reload-success: "{prefix} &a插件配置与语言文件已重载！"
+command-flush-success: "{prefix} &a已强制写入数据库并清理缓存。"
 
-  command-give-invalid-number: "%prefix% &c数值格式非法，请输入有效数字"
-  command-give-success: "%prefix% &a已为 &b{player} &a的 &d{key} &a设置 &e{attribute} = {value}"
+command-give-invalid-number: "{prefix} &c数值格式非法，请输入有效数字"
+command-give-success: "{prefix} &a已为 &b{player} &a的 &d{key} &a设置 &e{attribute} = {value} &7[内存:{memoryOnly}, 过期ticks:{expireTicks}]"
 
-  command-remove-success: "%prefix% &a已移除 &b{player} &a的 &d{key} &e{attribute} 属性"
-  command-remove-all-success: "%prefix% &a已移除 &b{player} &a的所有属性加成"
+command-remove-success: "{prefix} &a已移除 &b{player} &a的 &d{key} &e{attribute} 属性"
+command-remove-all-success: "{prefix} &a已移除 &b{player} &a的所有属性加成"
 
-  command-list-header: "%prefix% &e{player} 当前属性加成："
-  command-list-item: "&6- {attribute}：{value}"
-  command-list-empty: "%prefix% &c{player} 当前无任何属性加成"
-  command-list-key-header: "&d{key}:"
+command-list-header: "{prefix} &e{player} 当前属性加成："
+command-list-item: "&6- {attribute}：{value}"
+command-list-empty: "{prefix} &c{player} 当前无任何属性加成"
+command-list-key-header: "&d{key}:"
 
-  command-replace-success: "%prefix% &a已将 &b{player} &a的 &d{key} &e{attribute} 设置为 {value}"
-  command-no-change: "%prefix% &e属性未改变，无需操作"
+command-replace-success: "{prefix} &a已将 &b{player} &a的 &d{key} &e{attribute} 设置为 {value} &7[内存:{memoryOnly}, 过期ticks:{expireTicks}]"
+command-no-change: "{prefix} &e属性未改变，无需操作"
+
+# 占位符格式化配置
+# 空列表显示
+placeholder-list-empty: "&7无属性加成"
+
+# AttributeBinder属性列表格式
+placeholder-list-key-header: "\n&d【{key}】\n"
+placeholder-list-item: "  &6{attribute}: &e{value}\n"
+placeholder-list-separator: "\n"
+
+# 所有属性列表格式
+placeholder-list-ab-header: "&a=== AttributeBinder属性 ===\n"
+placeholder-list-other-header: "&b=== 其他来源属性 ===\n"
+placeholder-list-other-item: "  &6{attribute}: &e{value} &7(总计: {total})\n"
+
+# 指定key属性格式
+placeholder-key-empty: "&7Key '{key}' 下无属性"
+placeholder-key-item: "  &6{attribute}: &e{value}\n"
+
+# 详细检查占位符格式
+placeholder-inspect-header: "&a=== {stat} 属性详细信息 ===\n&f总值: &e{total}\n&f修饰符列表:\n"
+placeholder-inspect-item: "  &6{key}: &e{value} &7[{type}] &8({source}) &9{slot}\n"
+placeholder-inspect-empty: "&7该属性无任何修饰符\n"
+placeholder-inspect-error: "&c检查属性时发生错误: {error}"
+
+# 按来源过滤占位符格式
+placeholder-source-header: "&a=== {stat} 属性 - {source} 来源 ===\n"
+placeholder-source-item: "  &6{key}: &e{value} &7[{type}]\n"
+placeholder-source-empty: "&7该来源下无修饰符\n"
+placeholder-source-invalid: "&c无效的修饰符来源: {source}"
+placeholder-source-error: "&c按来源过滤时发生错误: {error}"
+
+# 统计信息占位符格式
+placeholder-stats-template: "&a=== {stat} 属性统计 ===\n&f总值: &e{total}\n&f修饰符数量: &e{count}\n&f固定值总计: &e{flat_total}\n&f相对值总计: &e{relative_total}\n&f乘法值总计: &e{multiplicative_total}\n\n&f来源分布:\n{source_breakdown}\n&f类型分布:\n{type_breakdown}"
+placeholder-stats-source-item: "  &6{source}: &e{count}个\n"
+placeholder-stats-type-item: "  &6{type}: &e{count}个\n"
+placeholder-stats-error: "&c获取统计信息时发生错误: {error}"
+
+# 命令错误消息
+command-unknown-subcommand: "&c未知子命令"
+command-list-keys-usage: "&c用法: /attributebinder list <玩家> keys <属性>"
+command-list-keyattrs-usage: "&c用法: /attributebinder list <玩家> keyattrs <KeyID>"
+command-list-inspect-usage: "&c用法: /attributebinder list <玩家> inspect <属性>"
+command-list-source-usage: "&c用法: /attributebinder list <玩家> source <属性> <来源>"
+command-list-stats-usage: "&c用法: /attributebinder list <玩家> stats <属性>"
+command-list-keys-empty: "&c玩家 {player} 的属性 {stat} 没有任何key"
+command-list-keys-header: "&e玩家 {player} 的属性 {stat} 的所有key:"
+command-list-keys-content: "&7{keys}"
+command-list-keyattrs-header: "&e玩家 {player} 在key \"{key}\" 下的属性:"
+
+# 帮助信息
+command-help-header: "&e========== AttributeBinder 帮助 =========="
+command-help-list-modes: "&7  list模式: all(所有属性), keys <属性>(显示key), keyattrs <KeyID>(key下属性), inspect <属性>(详细信息), source <属性> <来源>(按来源过滤), stats <属性>(统计信息)"
+command-help-reload: "{prefix} &e/attributebinder reload &7- 重载配置和语言文件"
+command-help-flush: "{prefix} &e/attributebinder flush &7- 强制写入数据库并清理缓存"
+command-help-help: "{prefix} &e/attributebinder help &7- 显示此帮助信息"
+command-help-footer: "&e=============================="
+
+# 修饰符类型显示名称
+modifier-type-flat: "固定值"
+modifier-type-relative: "百分比"
+modifier-type-multiplicative: "乘法"
+
+# 修饰符来源显示名称
+modifier-source-accessory: "饰品"
+modifier-source-armor: "护甲"
+modifier-source-hand-item: "手持物品"
+modifier-source-mainhand-item: "主手物品"
+modifier-source-melee-weapon: "近战武器"
+modifier-source-offhand-item: "副手物品"
+modifier-source-ornament: "装饰品"
+modifier-source-other: "其他"
+modifier-source-ranged-weapon: "远程武器"
+modifier-source-void: "虚空"

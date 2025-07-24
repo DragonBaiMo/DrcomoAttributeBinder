@@ -110,4 +110,40 @@ public class AttributeApplier {
         // 统一重算所有属性，触发 StatUpdateEvent
         data.getStatMap().updateAll();
     }
+
+    /**
+     * 移除所有由本插件在指定 keyId 下添加的修饰符（所有 stat）
+     */
+    public static void removeKey(UUID uuid, String keyId) {
+        MMOPlayerData data = MMOPlayerData.get(uuid);
+        String prefix = MOD_PREFIX + keyId + "_";
+        // 遍历每个 StatInstance，收集所有匹配 keyId 的修饰符 key
+        data.getStatMap().getInstances().forEach(instance -> {
+            List<String> toRemove = instance.getModifiers().stream()
+                    .map(StatModifier::getKey)
+                    .filter(key -> key.startsWith(prefix))
+                    .collect(Collectors.toList());
+            toRemove.forEach(instance::remove);
+        });
+        // 统一重算所有属性，触发 StatUpdateEvent
+        data.getStatMap().updateAll();
+    }
+
+    /**
+     * 移除所有由本插件在指定属性 stat 下添加的修饰符（支持所有 keyId）
+     */
+    public static void removeStat(UUID uuid, String stat) {
+        MMOPlayerData data = MMOPlayerData.get(uuid);
+        String statUpper = stat.toUpperCase();
+        // 遍历所有 stat 实例，移除本插件该属性下的修饰符
+        data.getStatMap().getInstances().forEach(instance -> {
+            List<String> toRemove = instance.getModifiers().stream()
+                    .map(StatModifier::getKey)
+                    .filter(key -> key.startsWith(MOD_PREFIX) && key.endsWith("_" + statUpper))
+                    .collect(Collectors.toList());
+            toRemove.forEach(instance::remove);
+        });
+        // 统一重算触发 StatUpdateEvent
+        data.getStatMap().updateAll();
+    }
 }

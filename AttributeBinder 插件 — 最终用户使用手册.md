@@ -34,9 +34,10 @@
 | 撤销   | `/ab remove <玩家> <属性ID> [KeyID]`    | 移除玩家单个属性加成       |
 | 按Key撤销 | `/ab remove <玩家> key <KeyID>` | 移除玩家指定 Key 下所有属性 |
 | 全部撤销 | `/ab remove <玩家> all`       | 移除玩家所有属性加成       |
-| 查询   | `/ab list <玩家>`             | 查看玩家所有当前加成属性     |
+| 查询   | `/ab list <玩家> [模式] [参数]`             | 查看玩家属性信息，支持多种模式     |
 | 热重载  | `/attributebinder reload`   | 重新加载配置并保存内存缓存    |
 | 手动写库 | `/attributebinder flush`    | 强制将内存中所有变更保存到数据库 |
+| 帮助   | `/attributebinder help`     | 显示详细的命令帮助信息 |
 
 ---
 
@@ -73,7 +74,9 @@
 
 此操作会将张三的 ATTACK_DAMAGE 加成值直接设为 10（若带 `%` 则代表百分比）。
 
-### 3.2 移除单个属性
+### 3.2 移除属性
+
+#### 3.2.1 移除单个属性
 
 1. 输入：
 
@@ -84,7 +87,18 @@
 
    > "已移除 张三 的属性 ATTACK_DAMAGE"
 
-### 3.3 移除所有属性
+#### 3.2.2 移除指定Key下所有属性
+
+1. 输入：
+
+   ```
+   /ab remove 张三 key mykey
+   ```
+2. 系统反馈：
+
+   > "已删除玩家 张三 的 Key mykey 下所有属性"
+
+#### 3.2.3 移除所有属性
 
 1. 输入：
 
@@ -97,6 +111,8 @@
 
 ### 3.4 查询玩家属性
 
+#### 3.4.1 基础查询
+
 1. 输入：
 
    ```
@@ -106,10 +122,43 @@
 
    ```
    张三 当前属性加成：
-     - ATTACK_DAMAGE：5.0
-     - SPEED：1.5
-     - JUMP_HEIGHT：-0.3
+   default:
+     - ATTACK_DAMAGE：+5.0
+     - SPEED：+1.5
    ```
+
+#### 3.4.2 高级查询模式
+
+**查看所有属性（包括非AttributeBinder的）：**
+```
+/ab list 张三 all
+```
+
+**查看指定属性的所有Key：**
+```
+/ab list 张三 keys ATTACK_DAMAGE
+```
+
+**查看指定Key下的所有属性：**
+```
+/ab list 张三 keyattrs mykey
+```
+
+**详细检查属性修饰符：**
+```
+/ab list 张三 inspect ATTACK_DAMAGE
+```
+
+**按来源过滤修饰符：**
+```
+/ab list 张三 source ATTACK_DAMAGE ARMOR
+```
+
+**查看属性统计信息：**
+```
+/ab list 张三 stats ATTACK_DAMAGE
+```
+
 3. 若玩家无任何加成，则提示：
 
    > "张三 当前无任何属性加成"
@@ -179,6 +228,16 @@
 * **合理刷新**：根据服务器负载调整 `sync-interval-minutes`，高峰期可设置为 0 并手动 `/attributebinder flush`。
 * **批量脚本**：结合控制台脚本快速对多名玩家执行 `/ab give` 或 `/ab remove`。
 * **定期备份**：使用数据库导出工具备份 `player_attributes` 表，防止误删。
+
+### 3.5 获取帮助
+
+输入以下命令可查看详细的命令帮助信息：
+
+```
+/attributebinder help
+```
+
+系统将显示所有可用命令的格式和说明，包括各种list模式的详细用法。
 
 ---
 
