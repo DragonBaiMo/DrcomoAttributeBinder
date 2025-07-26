@@ -1,5 +1,6 @@
 package com.baimo.attributeBinder;
 
+import cn.drcomo.corelib.async.AsyncTaskManager;
 import cn.drcomo.corelib.hook.placeholder.PlaceholderAPIUtil;
 import cn.drcomo.corelib.message.MessageService;
 import cn.drcomo.corelib.util.DebugUtil;
@@ -41,6 +42,8 @@ public final class AttributeBinder extends JavaPlugin {
     private JdbcStorageManager storage;
     // 定时刷新任务
     private BukkitTask flushTask;
+    // 异步任务管理器
+    private AsyncTaskManager taskManager;
 
     @Override
     public void onEnable() {
@@ -50,6 +53,9 @@ public final class AttributeBinder extends JavaPlugin {
         initConfigAndDebug();
         initPlaceholderAPI();
         initMessages();
+
+        // 初始化异步任务管理器
+        taskManager = new AsyncTaskManager(this, debug);
 
         debug.info("插件正在加载 ...");
 
@@ -68,6 +74,9 @@ public final class AttributeBinder extends JavaPlugin {
         if (flushTask != null) {
             flushTask.cancel();
         }
+        if (taskManager != null) {
+            taskManager.shutdown();
+        }
         // 保存所有缓存数据并关闭存储
         // 先获取快照，再清除内存缓存，保证保存后清空
         Map<UUID, Map<String, Map<String, CacheManager.Entry>>> cacheSnapshot = CacheManager.snapshot();
@@ -81,6 +90,15 @@ public final class AttributeBinder extends JavaPlugin {
     /** 获取插件实例 */
     public static AttributeBinder getInstance() {
         return INSTANCE;
+    }
+
+    /**
+     * 获取异步任务管理器。
+     *
+     * @return AsyncTaskManager 实例
+     */
+    public static AsyncTaskManager getAsyncTaskManager() {
+        return INSTANCE.taskManager;
     }
 
     /**

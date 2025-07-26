@@ -150,8 +150,7 @@ public class AttributeBinderCommand implements CommandExecutor, TabCompleter {
                         Player player = getPlayer(args[1], sender);
                         if (player != null) {
                             UUID uuid = player.getUniqueId();
-                            List<String> keys = CacheManager.snapshot()
-                                    .getOrDefault(uuid, Collections.emptyMap())
+                            List<String> keys = CacheManager.snapshot(uuid)
                                     .values().stream()
                                     .flatMap(statMap -> statMap.keySet().stream())
                                     .distinct()
@@ -204,8 +203,7 @@ public class AttributeBinderCommand implements CommandExecutor, TabCompleter {
             // 值未改变，仅更新过期时间
             long oldTicks = CacheManager.getExpireTicks(uuid, stat, params.keyId);
             long newExpire = params.expireTicks >= 0 ? params.expireTicks : oldTicks;
-            Entry entry = CacheManager.snapshot()
-                    .getOrDefault(uuid, Collections.emptyMap())
+            Entry entry = CacheManager.snapshot(uuid)
                     .getOrDefault(stat, Collections.emptyMap())
                     .get(params.keyId);
             boolean oldPercent = (entry != null && entry.isPercent());
@@ -293,8 +291,7 @@ public class AttributeBinderCommand implements CommandExecutor, TabCompleter {
             if (keyId == null) {
                 return false;
             }
-            CacheManager.snapshot()
-                    .getOrDefault(uuid, Collections.emptyMap())
+            CacheManager.snapshot(uuid)
                     .keySet()
                     .forEach(s -> CacheManager.removeAttribute(uuid, s, keyId));
             AttributeApplier.removeKey(uuid, keyId);
@@ -314,8 +311,7 @@ public class AttributeBinderCommand implements CommandExecutor, TabCompleter {
         
         // 删除指定属性（所有 KeyID 或 指定 KeyID）
         if (keyId == null) {
-            CacheManager.snapshot()
-                    .getOrDefault(uuid, Collections.emptyMap())
+            CacheManager.snapshot(uuid)
                     .getOrDefault(stat, Collections.emptyMap())
                     .keySet()
                     .forEach(k -> CacheManager.removeAttribute(uuid, stat, k));
@@ -428,8 +424,7 @@ public class AttributeBinderCommand implements CommandExecutor, TabCompleter {
     private void handleListKeys(CommandSender sender, Player target, String stat) {
         String statUpper = stat.toUpperCase();
         UUID uuid = target.getUniqueId();
-        Map<String, Map<String, Entry>> statMap = 
-            CacheManager.snapshot().getOrDefault(uuid, Collections.emptyMap());
+        Map<String, Map<String, Entry>> statMap = CacheManager.snapshot(uuid);
         Map<String, Entry> keyMap = statMap.get(statUpper);
         
         if (keyMap == null || keyMap.isEmpty()) {
@@ -513,8 +508,7 @@ public class AttributeBinderCommand implements CommandExecutor, TabCompleter {
             // 值未改变，仅更新过期时间（替换语义）
             long oldTicks = CacheManager.getExpireTicks(uuid, stat, params.keyId);
             long newExpire = params.expireTicks >= 0 ? params.expireTicks : oldTicks;
-            Entry entry = CacheManager.snapshot()
-                    .getOrDefault(uuid, Collections.emptyMap())
+            Entry entry = CacheManager.snapshot(uuid)
                     .getOrDefault(stat, Collections.emptyMap())
                     .get(params.keyId);
             boolean oldPercent = (entry != null && entry.isPercent());
@@ -620,8 +614,7 @@ public class AttributeBinderCommand implements CommandExecutor, TabCompleter {
 
     /** 将缓存快照按 KeyID 分组 */
     private LinkedHashMap<String, Map<String, Entry>> groupSnapshotByKey(UUID uuid) {
-        Map<String, Map<String, Entry>> statMap =
-                CacheManager.snapshot().getOrDefault(uuid, Collections.emptyMap());
+        Map<String, Map<String, Entry>> statMap = CacheManager.snapshot(uuid);
         LinkedHashMap<String, Map<String, Entry>> byKey = new LinkedHashMap<>();
         statMap.forEach((stat, keyMap) ->
                 keyMap.forEach((key, entry) ->
