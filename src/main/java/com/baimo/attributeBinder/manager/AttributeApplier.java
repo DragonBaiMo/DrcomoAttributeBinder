@@ -12,21 +12,13 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-/**
- * 兼容新旧 MythicLib 百分比修饰符的属性应用器。
- * 支持 keyId 多实例、百分比与平值两种修饰符。
- */
 public class AttributeApplier {
 
-    /** 统一前缀，便于批量移除 */
     private static final String MOD_PREFIX = "AttributeBinder_";
 
-    /** 运行时动态解析百分比修饰符类型 */
+    /** 仅用于“线性乘区”。若无 ADDITIVE_MULTIPLIER，则回退为 RELATIVE（且必须只保留一个合并后的百分比）。 */
     private static final ModifierType PERCENT_TYPE = resolvePercentType();
 
-    /**
-     * 动态获取百分比修饰符类型（新版为 ADDITIVE_MULTIPLIER，旧版为 RELATIVE，兜底为 FLAT）
-     */
     private static ModifierType resolvePercentType() {
         try {
             return ModifierType.valueOf("ADDITIVE_MULTIPLIER");
@@ -34,6 +26,7 @@ public class AttributeApplier {
             try {
                 return ModifierType.valueOf("RELATIVE");
             } catch (IllegalArgumentException e2) {
+                // 不应落到 FLAT；只是兜底，避免崩溃。真正遇到应在 apply 时直接返回并告警。
                 return ModifierType.FLAT;
             }
         }
@@ -44,33 +37,61 @@ public class AttributeApplier {
     }
 
     /**
-     * 为玩家应用属性修饰符（带 keyId，支持百分比/平值，自动兼容新旧 MythicLib）
+     * 应用单条修饰符。
+     * @param percent  当为 true 时，value 必须以“百分数”传入：如 12% 传 12.0
      */
     public static void apply(UUID uuid, String stat, String keyId, double value, boolean percent) {
         Player player = Bukkit.getPlayer(uuid);
         if (player == null) return;
 
-        remove(uuid, stat, keyId);
-
         MMOPlayerData data = MMOPlayerData.get(uuid);
+        String statUpper = stat.toUpperCase();
 
-        // 百分比兼容：新版 ADDITIVE_MULTIPLIER 和旧版 RELATIVE 都直接使用原始百分比值
-        // 例如：12% 对应 value=0.12，两种类型都使用 0.12
+        // 安全：先清理本插件在该 stat + keyId 下的同类型遗留，避免混合乘区
+        cleanupSameChannel(data, statUpper, keyId, percent);
+
+        if (percent && PERCENT_TYPE == ModifierType.FLAT) {
+            // 极端兜底：当前环境不支持百分比类型，直接跳过，避免错误放大
+            // 你也可以改成将百分比近似折算为 FLAT，但这通常不符合预期
+            return;
+        }
+
+        // 重要：百分比以“百分数”传入：12% → 12.0
         double finalValue = value;
 
         StatModifier modifier = new StatModifier(
-                modifierId(stat, keyId),
-                stat.toUpperCase(),
+                modifierId(statUpper, keyId),
+                statUpper,
                 finalValue,
                 percent ? PERCENT_TYPE : ModifierType.FLAT,
                 EquipmentSlot.OTHER,
                 ModifierSource.OTHER
         );
-
         modifier.register(data);
     }
 
-    /** 兼容旧接口：默认 keyId */
+    /** 清理同一 stat+keyId 下本插件产生的同通道修饰符，防止遗留叠加 */
+    private static void cleanupSameChannel(MMOPlayerData data, String statUpper, String keyId, boolean percent) {
+        String id = modifierId(statUpper, keyId);
+        StatModifier existing = data.getStatMap().getInstance(statUpper).getModifier(id);
+        if (existing != null) {
+            data.getStatMap().getInstance(statUpper).remove(id);
+        }
+
+        // 额外：清理本插件前缀、同 stat、且类型属于“百分比通道”的遗留，避免旧版 RELATIVE 与新版 ADDITIVE_MULTIPLIER 混在一起
+        data.getStatMap().getInstance(statUpper).getModifiers().stream()
+                .filter(mod -> mod.getKey().startsWith(MOD_PREFIX) && mod.getStat().equalsIgnoreCase(statUpper))
+                .filter(mod -> isPercentType(mod.getType()))
+                .map(StatModifier::getKey)
+                .forEach(key -> data.getStatMap().getInstance(statUpper).remove(key));
+    }
+
+    private static boolean isPercentType(ModifierType type) {
+        return type == ModifierType.ADDITIVE_MULTIPLIER || type == ModifierType.RELATIVE;
+    }
+
+    // === 兼容旧接口 ===
+
     public static void apply(UUID uuid, String stat, double value) {
         apply(uuid, stat, CacheManager.DEFAULT_KEY, value, false);
     }
@@ -79,45 +100,31 @@ public class AttributeApplier {
         apply(uuid, stat, CacheManager.DEFAULT_KEY, value, percent);
     }
 
-    /** 移除单个属性（指定 keyId） */
     public static void remove(UUID uuid, String stat, String keyId) {
         MMOPlayerData data = MMOPlayerData.get(uuid);
         data.getStatMap().getInstance(stat.toUpperCase()).remove(modifierId(stat, keyId));
+        data.getStatMap().updateAll();
     }
 
-    /** 兼容旧接口 */
     public static void remove(UUID uuid, String stat) {
         remove(uuid, stat, CacheManager.DEFAULT_KEY);
     }
 
-    /**
-     * 移除所有由本插件添加的属性（所有 keyId）
-     */
     public static void removeAll(UUID uuid) {
         MMOPlayerData data = MMOPlayerData.get(uuid);
-
-        // 遍历每个 StatInstance，收集所有本插件前缀的修饰符 key
         data.getStatMap().getInstances().forEach(instance -> {
             List<String> toRemove = instance.getModifiers().stream()
                     .map(StatModifier::getKey)
                     .filter(key -> key.startsWith(MOD_PREFIX))
                     .collect(Collectors.toList());
-
-            // 逐条调用官方 API 删除，并触发脏标记与事件
             toRemove.forEach(instance::remove);
         });
-
-        // 统一重算所有属性，触发 StatUpdateEvent
         data.getStatMap().updateAll();
     }
 
-    /**
-     * 移除所有由本插件在指定 keyId 下添加的修饰符（所有 stat）
-     */
     public static void removeKey(UUID uuid, String keyId) {
         MMOPlayerData data = MMOPlayerData.get(uuid);
         String prefix = MOD_PREFIX + keyId + "_";
-        // 遍历每个 StatInstance，收集所有匹配 keyId 的修饰符 key
         data.getStatMap().getInstances().forEach(instance -> {
             List<String> toRemove = instance.getModifiers().stream()
                     .map(StatModifier::getKey)
@@ -125,17 +132,12 @@ public class AttributeApplier {
                     .collect(Collectors.toList());
             toRemove.forEach(instance::remove);
         });
-        // 统一重算所有属性，触发 StatUpdateEvent
         data.getStatMap().updateAll();
     }
 
-    /**
-     * 移除所有由本插件在指定属性 stat 下添加的修饰符（支持所有 keyId）
-     */
     public static void removeStat(UUID uuid, String stat) {
         MMOPlayerData data = MMOPlayerData.get(uuid);
         String statUpper = stat.toUpperCase();
-        // 遍历所有 stat 实例，移除本插件该属性下的修饰符
         data.getStatMap().getInstances().forEach(instance -> {
             List<String> toRemove = instance.getModifiers().stream()
                     .map(StatModifier::getKey)
@@ -143,7 +145,6 @@ public class AttributeApplier {
                     .collect(Collectors.toList());
             toRemove.forEach(instance::remove);
         });
-        // 统一重算触发 StatUpdateEvent
         data.getStatMap().updateAll();
     }
 }
