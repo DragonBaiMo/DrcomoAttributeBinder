@@ -199,8 +199,10 @@
           * 返回值为标准 SNBT（Stringified Named Binary Tag）格式，类似 JSON，但字段顺序、类型与 Minecraft NBT 规范一致。
           * 例如：`{id:"minecraft:diamond_sword",Count:1b,tag:{display:{Name:"\"神器\""},CustomModelData:1234}}`
           * 若物品无 NBT 或异常，返回 "{}"。
+          * 输出字符串始终包含 `id` 与 `Count` 字段，可直接传入 `fromRawString` 还原物品。
       * **典型用途:**
           * 适合直接打印日志、人工比对、与 NBTExplorer/NBT Exporter 等工具输出对照。
+          * 输出结果可直接作为 `fromRawString` 的输入，恢复原物品。
 
   * #### `getRawCompound(ItemStack item)`
 
@@ -220,6 +222,8 @@
       * **返回类型:** `ItemStack`
       * **功能描述:** 将 SNBT/JSON 字符串反序列化为 ItemStack；若解析失败抛出 `ParseException`。
       * **返回格式说明:** 解析遵循 NBT-API `NBT.parseNBT` 规范，支持标准 SNBT，如 `{id:"minecraft:stone",Count:1b}`。
+      * **典型用途:**
+          * 与 `toRawString` 配合，实现 NBT 的完整导出与还原。
 
   * #### `getAllNbt(ItemStack item)` / `setAllNbt(ItemStack item, Map<String,Object> nbtMap)`
 
@@ -237,6 +241,16 @@
 
       * **返回类型:** `String`
       * **功能描述:** 输出带缩进的美化 SNBT，方便人工阅读。
+
+  * #### `fromPrettyString(String pretty)`
+
+      * **返回类型:** `ItemStack`
+      * **功能描述:** 将 `toPrettyString` 的结果去除空白后反序列化为 ItemStack。
+      * **使用示例:**
+        ```java
+        String pretty = nbtUtil.toPrettyString(item);
+        ItemStack clone = nbtUtil.fromPrettyString(pretty);
+        ```
 
   * #### `exportPluginNbt(ItemStack)` / `importPluginNbt(ItemStack,String)`
 
