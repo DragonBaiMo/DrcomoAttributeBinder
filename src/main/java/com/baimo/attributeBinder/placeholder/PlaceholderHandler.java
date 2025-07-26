@@ -106,8 +106,7 @@ public class PlaceholderHandler {
             if (target == null || useArgs == null || useArgs.isEmpty()) return "";
             String stat = useArgs.toUpperCase();
             UUID uuid = target.getUniqueId();
-            Map<String, Map<String, CacheManager.Entry>> statMap = 
-                CacheManager.snapshot().getOrDefault(uuid, Collections.emptyMap());
+            Map<String, Map<String, CacheManager.Entry>> statMap = CacheManager.snapshot(uuid);
             Map<String, CacheManager.Entry> keyMap = statMap.get(stat);
             if (keyMap == null || keyMap.isEmpty()) return "";
             return String.join(", ", keyMap.keySet());
@@ -157,8 +156,7 @@ public class PlaceholderHandler {
      */
     private static String formatAttributeBinderAttributes(Player player) {
         UUID uuid = player.getUniqueId();
-        Map<String, Map<String, CacheManager.Entry>> statMap = 
-            CacheManager.snapshot().getOrDefault(uuid, Collections.emptyMap());
+        Map<String, Map<String, CacheManager.Entry>> statMap = CacheManager.snapshot(uuid);
         
         if (statMap.isEmpty()) {
             return LangManager.get().get("placeholder-list-empty");
@@ -271,8 +269,7 @@ public class PlaceholderHandler {
      */
     public static String formatKeyAttributes(Player player, String keyId) {
         UUID uuid = player.getUniqueId();
-        Map<String, Map<String, CacheManager.Entry>> statMap = 
-            CacheManager.snapshot().getOrDefault(uuid, Collections.emptyMap());
+        Map<String, Map<String, CacheManager.Entry>> statMap = CacheManager.snapshot(uuid);
         
         Map<String, CacheManager.Entry> keyAttrs = new LinkedHashMap<>();
         statMap.forEach((stat, keyMap) -> {

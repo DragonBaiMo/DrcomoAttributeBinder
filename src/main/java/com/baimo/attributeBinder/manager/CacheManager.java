@@ -157,6 +157,24 @@ public class CacheManager {
         });
         return Collections.unmodifiableMap(copy);
     }
+
+    /**
+     * 返回指定玩家的属性快照。
+     *
+     * <p>只复制嵌套映射，不深拷贝 {@link Entry}，确保只读安全。</p>
+     *
+     * @param uuid 目标玩家 UUID
+     * @return stat → keyId → Entry 的不可修改视图
+     */
+    public static Map<String, Map<String, Entry>> snapshot(UUID uuid) {
+        ConcurrentHashMap<String, ConcurrentHashMap<String, Entry>> statMap = CACHE.get(uuid);
+        if (statMap == null) {
+            return Collections.emptyMap();
+        }
+        Map<String, Map<String, Entry>> copy = new HashMap<>();
+        statMap.forEach((stat, keyMap) -> copy.put(stat, new HashMap<>(keyMap)));
+        return Collections.unmodifiableMap(copy);
+    }
     /**
      * 获取指定 keyId 的剩余过期时长（ticks），不存在或未设置返回 0。
      */
@@ -170,20 +188,28 @@ public class CacheManager {
      */
     public static void cleanupExpired(StorageManager storage) {
         // 每次调用递减 CLEANUP_INTERVAL_TICKS
-        for (UUID uuid : new ArrayList<>(CACHE.keySet())) {
-            ConcurrentHashMap<String, ConcurrentHashMap<String, Entry>> statMap = CACHE.get(uuid);
-            if (statMap == null) continue;
-            for (String stat : new ArrayList<>(statMap.keySet())) {
-                ConcurrentHashMap<String, Entry> keyMap = statMap.get(stat);
-                for (String keyId : new ArrayList<>(keyMap.keySet())) {
-                    Entry entry = keyMap.get(keyId);
+        Iterator<Map.Entry<UUID, ConcurrentHashMap<String, ConcurrentHashMap<String, Entry>>>> playerIt = CACHE.entrySet().iterator();
+        while (playerIt.hasNext()) {
+            Map.Entry<UUID, ConcurrentHashMap<String, ConcurrentHashMap<String, Entry>>> player = playerIt.next();
+            UUID uuid = player.getKey();
+            ConcurrentHashMap<String, ConcurrentHashMap<String, Entry>> statMap = player.getValue();
+
+            Iterator<Map.Entry<String, ConcurrentHashMap<String, Entry>>> statIt = statMap.entrySet().iterator();
+            while (statIt.hasNext()) {
+                Map.Entry<String, ConcurrentHashMap<String, Entry>> statEntry = statIt.next();
+                String stat = statEntry.getKey();
+                ConcurrentHashMap<String, Entry> keyMap = statEntry.getValue();
+
+                Iterator<Map.Entry<String, Entry>> keyIt = keyMap.entrySet().iterator();
+                while (keyIt.hasNext()) {
+                    Map.Entry<String, Entry> keyEntry = keyIt.next();
+                    String keyId = keyEntry.getKey();
+                    Entry entry = keyEntry.getValue();
                     if (entry.getExpireTicks() > 0) {
                         long ticks = entry.getExpireTicks() - CLEANUP_INTERVAL_TICKS;
                         if (ticks <= 0) {
-                            keyMap.remove(keyId);
-                            // 同步移除应用
+                            keyIt.remove();
                             com.baimo.attributeBinder.manager.AttributeApplier.remove(uuid, stat, keyId);
-                            // 同步删除数据库记录（仅删除非memoryOnly的属性）
                             if (!entry.isMemoryOnly() && storage != null) {
                                 storage.deleteAttribute(uuid, stat, keyId);
                             }
@@ -192,12 +218,14 @@ public class CacheManager {
                         }
                     }
                 }
+
                 if (keyMap.isEmpty()) {
-                    statMap.remove(stat);
+                    statIt.remove();
                 }
             }
+
             if (statMap.isEmpty()) {
-                CACHE.remove(uuid);
+                playerIt.remove();
             }
         }
     }

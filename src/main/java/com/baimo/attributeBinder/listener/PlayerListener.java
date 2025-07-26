@@ -1,7 +1,8 @@
 package com.baimo.attributeBinder.listener;
 
-import com.baimo.attributeBinder.manager.*;
 import com.baimo.attributeBinder.AttributeBinder;
+import com.baimo.attributeBinder.manager.*;
+import java.util.concurrent.TimeUnit;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
@@ -23,27 +24,25 @@ public class PlayerListener implements Listener {
         CacheManager.clear(uuid);
         AttributeApplier.removeAll(uuid);
         
-        // 延迟20ticks加载数据，确保跨服同步
-        Bukkit.getScheduler().runTaskLater(AttributeBinder.getInstance(), () -> {
+        // 延迟一秒异步加载数据，完成后在主线程应用
+        AttributeBinder.getAsyncTaskManager().scheduleAsync(() -> {
             StorageManager storage = AttributeBinderContext.getStorage();
-            // 加载并缓存
             Map<String, Map<String, CacheManager.Entry>> attrs = storage.loadAttributes(uuid);
-            attrs.forEach((stat, keyMap) -> keyMap.forEach((keyId, entry) -> {
-                CacheManager.setAttribute(uuid, stat, keyId, entry.getValue(), entry.isPercent());
-                AttributeApplier.apply(uuid, stat, keyId, entry.getValue(), entry.isPercent());
-            }));
-        }, 20L);
+            Bukkit.getScheduler().runTask(AttributeBinder.getInstance(), () ->
+                attrs.forEach((stat, keyMap) -> keyMap.forEach((keyId, entry) -> {
+                    CacheManager.setAttribute(uuid, stat, keyId, entry.getValue(), entry.isPercent());
+                    AttributeApplier.apply(uuid, stat, keyId, entry.getValue(), entry.isPercent());
+                })));
+        }, 1, TimeUnit.SECONDS);
     }
 
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
         UUID uuid = event.getPlayer().getUniqueId();
         StorageManager storage = AttributeBinderContext.getStorage();
-        // 先复制玩家属性数据，避免异步线程执行时已被清空
-        java.util.Map<String, java.util.Map<String, CacheManager.Entry>> dataCopy =
-                com.baimo.attributeBinder.manager.CacheManager.snapshot()
-                        .getOrDefault(uuid, java.util.Collections.emptyMap());
-        // 保存数据（同步，确保在关服时写入），仅持久化周期属性
+        // 复制玩家属性数据，避免异步线程执行时数据被清空
+        Map<String, Map<String, CacheManager.Entry>> dataCopy = CacheManager.snapshot(uuid);
+
         Map<String, Map<String, CacheManager.Entry>> filtered = new HashMap<>();
         dataCopy.forEach((stat, keyMap) -> {
             Map<String, CacheManager.Entry> filteredKeyMap = keyMap.entrySet().stream()
@@ -53,8 +52,10 @@ public class PlayerListener implements Listener {
                 filtered.put(stat, filteredKeyMap);
             }
         });
-        storage.saveAttributes(uuid, filtered);
+
+        // 异步保存，减少主线程阻塞
+        AttributeBinder.getAsyncTaskManager().submitAsync(() -> storage.saveAttributes(uuid, filtered));
         CacheManager.clear(uuid);
         AttributeApplier.removeAll(uuid);
     }
-} 
+}
