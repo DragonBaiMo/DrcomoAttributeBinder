@@ -28,11 +28,14 @@ public class PlayerListener implements Listener {
         AttributeBinder.getAsyncTaskManager().scheduleAsync(() -> {
             StorageManager storage = AttributeBinderContext.getStorage();
             Map<String, Map<String, CacheManager.Entry>> attrs = storage.loadAttributes(uuid);
-            Bukkit.getScheduler().runTask(AttributeBinder.getInstance(), () ->
-                attrs.forEach((stat, keyMap) -> keyMap.forEach((keyId, entry) -> {
-                    CacheManager.setAttribute(uuid, stat, keyId, entry.getValue(), entry.isPercent());
-                    AttributeApplier.apply(uuid, stat, keyId, entry.getValue(), entry.isPercent());
-                })));
+            Bukkit.getScheduler().runTask(AttributeBinder.getInstance(), () -> {
+                attrs.forEach((stat, keyMap) -> {
+                    keyMap.forEach((keyId, entry) ->
+                            CacheManager.setAttribute(uuid, stat, keyId, entry.getValue(), entry.isPercent())
+                    );
+                    AggregatedApplier.applyFromCache(uuid, stat);
+                });
+            });
         }, 1, TimeUnit.SECONDS);
     }
 

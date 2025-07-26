@@ -209,7 +209,6 @@ public class CacheManager {
                         long ticks = entry.getExpireTicks() - CLEANUP_INTERVAL_TICKS;
                         if (ticks <= 0) {
                             keyIt.remove();
-                            com.baimo.attributeBinder.manager.AttributeApplier.remove(uuid, stat, keyId);
                             if (!entry.isMemoryOnly() && storage != null) {
                                 storage.deleteAttribute(uuid, stat, keyId);
                             }
@@ -222,6 +221,7 @@ public class CacheManager {
                 if (keyMap.isEmpty()) {
                     statIt.remove();
                 }
+                com.baimo.attributeBinder.manager.AggregatedApplier.applyFromCache(uuid, stat);
             }
 
             if (statMap.isEmpty()) {

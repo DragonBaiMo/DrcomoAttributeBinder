@@ -12,9 +12,9 @@ import com.baimo.attributeBinder.task.ExpireTask;
 import com.baimo.attributeBinder.manager.ConfigManager;
 import com.baimo.attributeBinder.manager.LangManager;
 import com.baimo.attributeBinder.manager.CacheManager;
-import com.baimo.attributeBinder.manager.AttributeApplier;
 import com.baimo.attributeBinder.manager.AttributeBinderContext;
 import com.baimo.attributeBinder.manager.JdbcStorageManager;
+import com.baimo.attributeBinder.manager.AggregatedApplier;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -173,11 +173,12 @@ public final class AttributeBinder extends JavaPlugin {
     private void loadPlayerData(Player player) {
         UUID uuid = player.getUniqueId();
         Map<String, Map<String, CacheManager.Entry>> attrs = storage.loadAttributes(uuid);
-        attrs.forEach((stat, keyMap) ->
+        attrs.forEach((stat, keyMap) -> {
             keyMap.forEach((keyId, entry) ->
-                applyEntry(uuid, stat, keyId, entry)
-            )
-        );
+                    applyEntry(uuid, stat, keyId, entry)
+            );
+            AggregatedApplier.applyFromCache(uuid, stat);
+        });
     }
 
     /**
@@ -190,7 +191,7 @@ public final class AttributeBinder extends JavaPlugin {
     private void applyEntry(UUID uuid, String stat, String keyId, CacheManager.Entry entry) {
         // 从数据库加载的属性都是持久化的，不是memoryOnly
         CacheManager.setAttribute(uuid, stat, keyId, entry.getValue(), entry.isPercent(), false, entry.getExpireTicks());
-        AttributeApplier.apply(uuid, stat, keyId, entry.getValue(), entry.isPercent());
+        AggregatedApplier.applyFromCache(uuid, stat);
     }
 
     /** 初始化所有定时任务，包括刷新与过期清理 */

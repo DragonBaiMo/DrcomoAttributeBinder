@@ -7,6 +7,7 @@ import com.baimo.attributeBinder.manager.CacheManager.Entry;
 import com.baimo.attributeBinder.manager.ConfigManager;
 import com.baimo.attributeBinder.manager.LangManager;
 import com.baimo.attributeBinder.manager.AttributeApplier;
+import com.baimo.attributeBinder.manager.AggregatedApplier;
 import com.baimo.attributeBinder.task.FlushTask;
 import net.Indyuce.mmoitems.MMOItems;
 import net.Indyuce.mmoitems.stat.type.ItemStat;
@@ -216,7 +217,7 @@ public class AttributeBinderCommand implements CommandExecutor, TabCompleter {
             long oldExpire = CacheManager.getExpireTicks(uuid, stat, params.keyId);
             long newExpire = params.expireTicks >= 0 ? oldExpire + params.expireTicks : oldExpire;
             CacheManager.setAttribute(uuid, stat, params.keyId, newVal, vp.percent, params.memoryOnly, newExpire);
-            AttributeApplier.apply(uuid, stat, params.keyId, newVal, vp.percent);
+            AggregatedApplier.applyFromCache(uuid, stat);
             String valStr = formatValue(newVal, vp.percent);
             sendGiveSuccess(sender, target.getName(), stat, valStr, params.keyId, params.memoryOnly, newExpire);
         }
@@ -293,9 +294,10 @@ public class AttributeBinderCommand implements CommandExecutor, TabCompleter {
             }
             CacheManager.snapshot(uuid)
                     .keySet()
-                    .forEach(s -> CacheManager.removeAttribute(uuid, s, keyId));
-            AttributeApplier.removeKey(uuid, keyId);
-            // 同步删除数据库中的数据
+                    .forEach(s -> {
+                        CacheManager.removeAttribute(uuid, s, keyId);
+                        AggregatedApplier.applyFromCache(uuid, s);
+                    });
             storage.deleteAttributesByKey(uuid, keyId);
             return true;
         }
@@ -315,13 +317,11 @@ public class AttributeBinderCommand implements CommandExecutor, TabCompleter {
                     .getOrDefault(stat, Collections.emptyMap())
                     .keySet()
                     .forEach(k -> CacheManager.removeAttribute(uuid, stat, k));
-            AttributeApplier.removeStat(uuid, stat);
-            // 同步删除数据库中的数据
+            AggregatedApplier.applyFromCache(uuid, stat);
             storage.deleteAttribute(uuid, stat, null);
         } else {
             CacheManager.removeAttribute(uuid, stat, keyId);
-            AttributeApplier.remove(uuid, stat, keyId);
-            // 同步删除数据库中的数据
+            AggregatedApplier.applyFromCache(uuid, stat);
             storage.deleteAttribute(uuid, stat, keyId);
         }
         return true;
@@ -521,7 +521,7 @@ public class AttributeBinderCommand implements CommandExecutor, TabCompleter {
             long oldExpire = CacheManager.getExpireTicks(uuid, stat, params.keyId);
             long newExpire = params.expireTicks >= 0 ? params.expireTicks : oldExpire;
             CacheManager.setAttribute(uuid, stat, params.keyId, vp.value, vp.percent, params.memoryOnly, newExpire);
-            AttributeApplier.apply(uuid, stat, params.keyId, vp.value, vp.percent);
+            AggregatedApplier.applyFromCache(uuid, stat);
             String valStr = formatValue(vp.value, vp.percent);
             sendReplaceSuccess(sender, target.getName(), stat, valStr, params.keyId);
         }

@@ -7,14 +7,37 @@ import io.lumine.mythic.lib.player.modifier.ModifierSource;
 import io.lumine.mythic.lib.player.modifier.ModifierType;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
+import java.util.logging.Logger;
 
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import cn.drcomo.corelib.util.DebugUtil;
+import com.baimo.attributeBinder.AttributeBinder;
 
+/**
+ * AttributeApplier —— 负责将缓存中的属性写入 MythicLib。
+ * <p>百分比值需以百分数形式传入，例如 30% 应写入 30.0。</p>
+ */
 public class AttributeApplier {
 
     private static final String MOD_PREFIX = "AttributeBinder_";
+
+    // 日志工具：优先使用 DrcomoCoreLib，如不可用则退回 Java Logger
+    private static final java.util.logging.Logger FALLBACK_LOG =
+            Logger.getLogger(AttributeApplier.class.getName());
+    private static final DebugUtil DEBUG_LOG;
+
+    static {
+        DebugUtil tmp;
+        try {
+            tmp = new DebugUtil(com.baimo.attributeBinder.AttributeBinder.getInstance(),
+                    cn.drcomo.corelib.util.DebugUtil.LogLevel.INFO);
+        } catch (Throwable t) {
+            tmp = null;
+        }
+        DEBUG_LOG = tmp;
+    }
 
     /** 仅用于“线性乘区”。若无 ADDITIVE_MULTIPLIER，则回退为 RELATIVE（且必须只保留一个合并后的百分比）。 */
     private static final ModifierType PERCENT_TYPE = resolvePercentType();
@@ -32,13 +55,40 @@ public class AttributeApplier {
         }
     }
 
+    /** 返回当前解析到的百分比类型 */
+    public static ModifierType getPercentType() {
+        return PERCENT_TYPE;
+    }
+
     private static String modifierId(String stat, String keyId) {
         return MOD_PREFIX + keyId + "_" + stat.toUpperCase();
     }
 
     /**
+     * 清理指定属性下本插件产生的所有百分比修饰符。
+     * @return 移除的条目数量
+     */
+    public static int clearPercent(UUID uuid, String stat) {
+        MMOPlayerData data = MMOPlayerData.get(uuid);
+        String statUpper = stat.toUpperCase();
+        List<String> toRemove = data.getStatMap().getInstance(statUpper).getModifiers().stream()
+                .filter(mod -> mod.getKey().startsWith(MOD_PREFIX) && isPercentType(mod.getType()))
+                .map(StatModifier::getKey)
+                .collect(Collectors.toList());
+        toRemove.forEach(key -> data.getStatMap().getInstance(statUpper).remove(key));
+        int removed = toRemove.size();
+        data.getStatMap().updateAll();
+        return removed;
+    }
+
+    /**
      * 应用单条修饰符。
-     * @param percent  当为 true 时，value 必须以“百分数”传入：如 12% 传 12.0
+     *
+     * @param uuid    目标玩家 UUID
+     * @param stat    属性标识
+     * @param keyId   属性 Key
+     * @param value   数值；当 {@code percent=true} 时需以百分数形式传入（30% → 30.0）
+     * @param percent true 表示写入百分比修饰符
      */
     public static void apply(UUID uuid, String stat, String keyId, double value, boolean percent) {
         Player player = Bukkit.getPlayer(uuid);
@@ -48,11 +98,15 @@ public class AttributeApplier {
         String statUpper = stat.toUpperCase();
 
         // 安全：先清理本插件在该 stat + keyId 下的同类型遗留，避免混合乘区
-        cleanupSameChannel(data, statUpper, keyId, percent);
+        cleanupSameChannel(data, uuid, statUpper, keyId, percent);
 
         if (percent && PERCENT_TYPE == ModifierType.FLAT) {
-            // 极端兜底：当前环境不支持百分比类型，直接跳过，避免错误放大
-            // 你也可以改成将百分比近似折算为 FLAT，但这通常不符合预期
+            String msg = "当前环境不支持百分比类型，已跳过写入";
+            if (DEBUG_LOG != null) {
+                DEBUG_LOG.warn(msg);
+            } else {
+                FALLBACK_LOG.warning(msg);
+            }
             return;
         }
 
@@ -71,19 +125,17 @@ public class AttributeApplier {
     }
 
     /** 清理同一 stat+keyId 下本插件产生的同通道修饰符，防止遗留叠加 */
-    private static void cleanupSameChannel(MMOPlayerData data, String statUpper, String keyId, boolean percent) {
+    private static void cleanupSameChannel(MMOPlayerData data, UUID uuid, String statUpper, String keyId, boolean percent) {
         String id = modifierId(statUpper, keyId);
         StatModifier existing = data.getStatMap().getInstance(statUpper).getModifier(id);
         if (existing != null) {
             data.getStatMap().getInstance(statUpper).remove(id);
         }
 
-        // 额外：清理本插件前缀、同 stat、且类型属于“百分比通道”的遗留，避免旧版 RELATIVE 与新版 ADDITIVE_MULTIPLIER 混在一起
-        data.getStatMap().getInstance(statUpper).getModifiers().stream()
-                .filter(mod -> mod.getKey().startsWith(MOD_PREFIX) && mod.getStat().equalsIgnoreCase(statUpper))
-                .filter(mod -> isPercentType(mod.getType()))
-                .map(StatModifier::getKey)
-                .forEach(key -> data.getStatMap().getInstance(statUpper).remove(key));
+        if (percent) {
+            // 额外：清理本插件前缀的百分比修饰符，保持单一乘区
+            clearPercent(uuid, statUpper);
+        }
     }
 
     private static boolean isPercentType(ModifierType type) {
