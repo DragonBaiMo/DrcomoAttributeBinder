@@ -1,7 +1,7 @@
-package com.baimo.attributeBinder.listener;
+package com.baimo.attributebinder.listener;
 
-import com.baimo.attributeBinder.AttributeBinder;
-import com.baimo.attributeBinder.manager.*;
+import com.baimo.attributebinder.AttributeBinder;
+import com.baimo.attributebinder.manager.*;
 import java.util.concurrent.TimeUnit;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;

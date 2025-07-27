@@ -1,4 +1,4 @@
-package com.baimo.attributeBinder.manager;
+package com.baimo.attributebinder.manager;
 
 import cn.drcomo.corelib.config.YamlUtil;
 import cn.drcomo.corelib.util.DebugUtil;

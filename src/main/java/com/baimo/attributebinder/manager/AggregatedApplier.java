@@ -1,12 +1,14 @@
-package com.baimo.attributeBinder.manager;
+package com.baimo.attributebinder.manager;
 
 import cn.drcomo.corelib.util.DebugUtil;
-import com.baimo.attributeBinder.AttributeBinder;
+import com.baimo.attributebinder.AttributeBinder;
 import io.lumine.mythic.lib.api.player.MMOPlayerData;
+import com.baimo.attributebinder.util.PluginConstants;
+import com.baimo.attributebinder.util.LoggerProvider;
 import io.lumine.mythic.lib.api.stat.modifier.StatModifier;
 import io.lumine.mythic.lib.player.modifier.ModifierType;
-import com.baimo.attributeBinder.manager.CacheManager;
-import com.baimo.attributeBinder.manager.AttributeApplier;
+import com.baimo.attributebinder.manager.CacheManager;
+import com.baimo.attributebinder.manager.AttributeApplier;
 
 import java.util.List;
 import java.util.Map;
@@ -19,27 +21,19 @@ import java.util.stream.Collectors;
  */
 public final class AggregatedApplier {
 
-    private static final String MOD_PREFIX = "AttributeBinder_";
+    private static final String MOD_PREFIX = PluginConstants.MOD_PREFIX;
     /** 聚合写入时默认使用的 KeyID */
     public static final String AGG_KEY = "AGGREGATED";
-    private static final Logger FALLBACK_LOG = Logger.getLogger(AggregatedApplier.class.getName());
-    private static final DebugUtil DEBUG_LOG;
-
-    static {
-        DebugUtil tmp;
-        try {
-            tmp = new DebugUtil(AttributeBinder.getInstance(), DebugUtil.LogLevel.INFO);
-        } catch (Throwable t) {
-            tmp = null;
-        }
-        DEBUG_LOG = tmp;
-    }
-
+    private static final Logger FALLBACK_LOG = LoggerProvider.getFallback(AggregatedApplier.class);
+    private static final DebugUtil DEBUG_LOG = LoggerProvider.getDebugLogger();
     private AggregatedApplier() {}
 
     /**
      * 根据缓存中的数值重新计算并写入指定属性。
      * 若缓存为空，将移除该属性下所有本插件修饰符。
+     *
+     * @param uuid 玩家 UUID
+     * @param stat 属性标识
      */
     public static void applyFromCache(UUID uuid, String stat) {
         Map<String, Map<String, CacheManager.Entry>> snapshot = CacheManager.snapshot(uuid);
@@ -103,7 +97,6 @@ public final class AggregatedApplier {
     /** 返回指定属性下已注册的插件百分比修饰符数并清理 */
     private static int clearPercentModifiers(MMOPlayerData data, String statUpper) {
         List<String> keys = data.getStatMap().getInstance(statUpper).getModifiers().stream()
-                .filter(m -> m.getKey().startsWith(MOD_PREFIX))
                 .filter(m -> isPercentType(m.getType()))
                 .map(StatModifier::getKey)
                 .collect(Collectors.toList());
@@ -125,10 +118,8 @@ public final class AggregatedApplier {
 
         double base = data.getStatMap().getInstance(statUpper).getBase();
         double flat = data.getStatMap().getInstance(statUpper).getModifiers().stream()
-                .filter(m -> m.getKey().startsWith(MOD_PREFIX) && m.getType() == ModifierType.FLAT)
                 .mapToDouble(StatModifier::getValue).sum();
         double percent = data.getStatMap().getInstance(statUpper).getModifiers().stream()
-                .filter(m -> m.getKey().startsWith(MOD_PREFIX) && isPercentType(m.getType()))
                 .mapToDouble(StatModifier::getValue).sum();
         double finalVal = (base + flat) * (1 + percent / 100d);
         return new StatView(base, flat, percent, AttributeApplier.getPercentType(), finalVal);

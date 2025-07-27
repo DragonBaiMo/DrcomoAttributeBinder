@@ -1,4 +1,4 @@
-package com.baimo.attributeBinder.manager;
+package com.baimo.attributebinder.manager;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -221,7 +221,7 @@ public class CacheManager {
                 if (keyMap.isEmpty()) {
                     statIt.remove();
                 }
-                com.baimo.attributeBinder.manager.AggregatedApplier.applyFromCache(uuid, stat);
+                com.baimo.attributebinder.manager.AggregatedApplier.applyFromCache(uuid, stat);
             }
 
             if (statMap.isEmpty()) {

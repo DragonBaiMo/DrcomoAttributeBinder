@@ -1,8 +1,8 @@
-package com.baimo.attributeBinder.placeholder;
+package com.baimo.attributebinder.placeholder;
 
 import cn.drcomo.corelib.hook.placeholder.PlaceholderAPIUtil;
-import com.baimo.attributeBinder.manager.CacheManager;
-import com.baimo.attributeBinder.manager.LangManager;
+import com.baimo.attributebinder.manager.CacheManager;
+import com.baimo.attributebinder.manager.LangManager;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;

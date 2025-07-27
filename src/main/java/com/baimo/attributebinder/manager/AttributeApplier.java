@@ -1,4 +1,4 @@
-package com.baimo.attributeBinder.manager;
+package com.baimo.attributebinder.manager;
 
 import io.lumine.mythic.lib.api.player.EquipmentSlot;
 import io.lumine.mythic.lib.api.player.MMOPlayerData;
@@ -8,12 +8,14 @@ import io.lumine.mythic.lib.player.modifier.ModifierType;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import java.util.logging.Logger;
+import com.baimo.attributebinder.util.PluginConstants;
+import com.baimo.attributebinder.util.LoggerProvider;
 
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import cn.drcomo.corelib.util.DebugUtil;
-import com.baimo.attributeBinder.AttributeBinder;
+import com.baimo.attributebinder.AttributeBinder;
 
 /**
  * AttributeApplier —— 负责将缓存中的属性写入 MythicLib。
@@ -21,23 +23,11 @@ import com.baimo.attributeBinder.AttributeBinder;
  */
 public class AttributeApplier {
 
-    private static final String MOD_PREFIX = "AttributeBinder_";
+    private static final String MOD_PREFIX = PluginConstants.MOD_PREFIX;
 
     // 日志工具：优先使用 DrcomoCoreLib，如不可用则退回 Java Logger
-    private static final java.util.logging.Logger FALLBACK_LOG =
-            Logger.getLogger(AttributeApplier.class.getName());
-    private static final DebugUtil DEBUG_LOG;
-
-    static {
-        DebugUtil tmp;
-        try {
-            tmp = new DebugUtil(com.baimo.attributeBinder.AttributeBinder.getInstance(),
-                    cn.drcomo.corelib.util.DebugUtil.LogLevel.INFO);
-        } catch (Throwable t) {
-            tmp = null;
-        }
-        DEBUG_LOG = tmp;
-    }
+    private static final java.util.logging.Logger FALLBACK_LOG = LoggerProvider.getFallback(AttributeApplier.class);
+    private static final DebugUtil DEBUG_LOG = LoggerProvider.getDebugLogger();
 
     /** 仅用于“线性乘区”。若无 ADDITIVE_MULTIPLIER，则回退为 RELATIVE（且必须只保留一个合并后的百分比）。 */
     private static final ModifierType PERCENT_TYPE = resolvePercentType();
@@ -144,10 +134,25 @@ public class AttributeApplier {
 
     // === 兼容旧接口 ===
 
+    /**
+     * 应用指定属性值（平值），使用默认 KeyID。
+     *
+     * @param uuid  玩家 UUID
+     * @param stat  属性标识
+     * @param value 数值
+     */
     public static void apply(UUID uuid, String stat, double value) {
         apply(uuid, stat, CacheManager.DEFAULT_KEY, value, false);
     }
 
+    /**
+     * 应用指定属性值，使用默认 KeyID。
+     *
+     * @param uuid   玩家 UUID
+     * @param stat   属性标识
+     * @param value  数值
+     * @param percent 是否百分比
+     */
     public static void apply(UUID uuid, String stat, double value, boolean percent) {
         apply(uuid, stat, CacheManager.DEFAULT_KEY, value, percent);
     }
