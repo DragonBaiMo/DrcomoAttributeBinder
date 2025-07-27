@@ -1,4 +1,4 @@
-package com.baimo.attributeBinder.manager;
+package com.baimo.attributebinder.config;
 
 import cn.drcomo.corelib.message.MessageService;
 import org.bukkit.command.CommandSender;

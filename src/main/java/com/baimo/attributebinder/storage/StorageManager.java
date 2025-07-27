@@ -1,4 +1,8 @@
-package com.baimo.attributeBinder.manager;
+package com.baimo.attributebinder.storage;
+
+/**
+ * StorageManager — 存储层程序接口，定义对玩家属性的指定操作
+ */
 
 import java.util.Map;
 import java.util.UUID;

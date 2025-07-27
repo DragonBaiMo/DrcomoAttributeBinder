@@ -1,4 +1,4 @@
-package com.baimo.attributeBinder.manager;
+package com.baimo.attributebinder.cache;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -209,7 +209,7 @@ public class CacheManager {
                         long ticks = entry.getExpireTicks() - CLEANUP_INTERVAL_TICKS;
                         if (ticks <= 0) {
                             keyIt.remove();
-                            com.baimo.attributeBinder.manager.AttributeApplier.remove(uuid, stat, keyId);
+                            com.baimo.attributebinder.service.AttributeApplier.remove(uuid, stat, keyId);
                             if (!entry.isMemoryOnly() && storage != null) {
                                 storage.deleteAttribute(uuid, stat, keyId);
                             }

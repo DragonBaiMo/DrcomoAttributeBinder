@@ -1,7 +1,7 @@
-package com.baimo.attributeBinder.task;
+package com.baimo.attributebinder.task;
 
-import com.baimo.attributeBinder.manager.CacheManager;
-import com.baimo.attributeBinder.manager.StorageManager;
+import com.baimo.attributebinder.cache.CacheManager;
+import com.baimo.attributebinder.storage.StorageManager;
 import org.bukkit.scheduler.BukkitRunnable;
 
 /**

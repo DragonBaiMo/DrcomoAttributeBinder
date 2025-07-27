@@ -1,4 +1,4 @@
-package com.baimo.attributeBinder.manager;
+package com.baimo.attributebinder.storage;
 
 import cn.drcomo.corelib.util.DebugUtil;
 import com.zaxxer.hikari.HikariConfig;
@@ -17,6 +17,10 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * JdbcStorageManager u2014 u57fau4e8e JDBC u7684u6570u636eu5b58u50a8u7ba1u7406
+ * u4f7fu7528 Hikari u8fdeu63a5u6c60 u63a7u5236 u6570u636eu5e93 u8fdeu63a5
+ */
 public class JdbcStorageManager implements StorageManager {
 
     private final JavaPlugin plugin;

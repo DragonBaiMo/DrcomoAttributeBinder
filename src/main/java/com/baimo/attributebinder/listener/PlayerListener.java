@@ -1,14 +1,21 @@
-package com.baimo.attributeBinder.listener;
+package com.baimo.attributebinder.listener;
 
-import com.baimo.attributeBinder.AttributeBinder;
-import com.baimo.attributeBinder.manager.*;
-import java.util.concurrent.TimeUnit;
+/**
+ * PlayerListener — 监听玩家上下线事件并处理属性加成与缓存保存
+ */
+
+import com.baimo.attributebinder.AttributeBinder;
+import com.baimo.attributebinder.cache.CacheManager;
+import com.baimo.attributebinder.service.AttributeApplier;
+import com.baimo.attributebinder.storage.AttributeBinderContext;
+import com.baimo.attributebinder.storage.StorageManager;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.Bukkit;
 
+import java.util.concurrent.TimeUnit;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.UUID;
