@@ -1,8 +1,8 @@
-package com.baimo.attributeBinder.task;
+package com.baimo.attributebinder.task;
 
-import com.baimo.attributeBinder.manager.AttributeBinderContext;
-import com.baimo.attributeBinder.manager.CacheManager;
-import com.baimo.attributeBinder.manager.StorageManager;
+import com.baimo.attributebinder.storage.AttributeBinderContext;
+import com.baimo.attributebinder.cache.CacheManager;
+import com.baimo.attributebinder.storage.StorageManager;
 import org.bukkit.scheduler.BukkitRunnable;
 
 public class FlushTask extends BukkitRunnable {

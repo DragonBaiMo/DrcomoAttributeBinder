@@ -1,13 +1,13 @@
-package com.baimo.attributeBinder.command;
+package com.baimo.attributebinder.command;
 
 import cn.drcomo.corelib.color.ColorUtil;
-import com.baimo.attributeBinder.AttributeBinder;
-import com.baimo.attributeBinder.manager.CacheManager;
-import com.baimo.attributeBinder.manager.CacheManager.Entry;
-import com.baimo.attributeBinder.manager.ConfigManager;
-import com.baimo.attributeBinder.manager.LangManager;
-import com.baimo.attributeBinder.manager.AttributeApplier;
-import com.baimo.attributeBinder.task.FlushTask;
+import com.baimo.attributebinder.AttributeBinder;
+import com.baimo.attributebinder.cache.CacheManager;
+import com.baimo.attributebinder.cache.CacheManager.Entry;
+import com.baimo.attributebinder.config.ConfigManager;
+import com.baimo.attributebinder.config.LangManager;
+import com.baimo.attributebinder.service.AttributeApplier;
+import com.baimo.attributebinder.task.FlushTask;
 import net.Indyuce.mmoitems.MMOItems;
 import net.Indyuce.mmoitems.stat.type.ItemStat;
 import net.Indyuce.mmoitems.stat.type.DoubleStat;
@@ -283,8 +283,8 @@ public class AttributeBinderCommand implements CommandExecutor, TabCompleter {
         UUID uuid = target.getUniqueId();
         
         // 获取存储管理器实例
-        com.baimo.attributeBinder.manager.StorageManager storage = 
-            com.baimo.attributeBinder.manager.AttributeBinderContext.getStorage();
+        com.baimo.attributebinder.storage.StorageManager storage = 
+            com.baimo.attributebinder.storage.AttributeBinderContext.getStorage();
 
         // 删除指定 KeyID 下所有属性
         if ("key".equalsIgnoreCase(stat)) {
@@ -414,7 +414,7 @@ public class AttributeBinderCommand implements CommandExecutor, TabCompleter {
      * 处理list all命令（显示所有属性，包括非AttributeBinder的）
      */
     private void handleListAll(CommandSender sender, Player target) {
-        String result = com.baimo.attributeBinder.placeholder.PlaceholderHandler.formatAllAttributes(target);
+        String result = com.baimo.attributebinder.placeholder.PlaceholderHandler.formatAllAttributes(target);
         sender.sendMessage(ColorUtil.translateColors(result));
     }
     
@@ -448,7 +448,7 @@ public class AttributeBinderCommand implements CommandExecutor, TabCompleter {
      * 处理list keyattrs命令（显示指定key下的所有属性）
      */
     private void handleListKeyAttrs(CommandSender sender, Player target, String keyId) {
-        String result = com.baimo.attributeBinder.placeholder.PlaceholderHandler.formatKeyAttributes(target, keyId);
+        String result = com.baimo.attributebinder.placeholder.PlaceholderHandler.formatKeyAttributes(target, keyId);
         lang.send(sender, "command-list-keyattrs-header", Map.of(
                 "player", target.getName(),
                 "key", keyId
@@ -460,7 +460,7 @@ public class AttributeBinderCommand implements CommandExecutor, TabCompleter {
      * 处理list inspect命令（详细检查指定属性的所有修饰符信息）
      */
     private void handleListInspect(CommandSender sender, Player target, String stat) {
-        String result = com.baimo.attributeBinder.placeholder.PlaceholderHandler.inspectStatModifiers(target, stat.toUpperCase());
+        String result = com.baimo.attributebinder.placeholder.PlaceholderHandler.inspectStatModifiers(target, stat.toUpperCase());
         sender.sendMessage(ColorUtil.translateColors(result));
     }
     
@@ -468,7 +468,7 @@ public class AttributeBinderCommand implements CommandExecutor, TabCompleter {
      * 处理list source命令（按来源过滤显示修饰符）
      */
     private void handleListSource(CommandSender sender, Player target, String stat, String source) {
-        String result = com.baimo.attributeBinder.placeholder.PlaceholderHandler.inspectStatModifiersBySource(target, stat.toUpperCase(), source.toUpperCase());
+        String result = com.baimo.attributebinder.placeholder.PlaceholderHandler.inspectStatModifiersBySource(target, stat.toUpperCase(), source.toUpperCase());
         sender.sendMessage(ColorUtil.translateColors(result));
     }
     
@@ -476,7 +476,7 @@ public class AttributeBinderCommand implements CommandExecutor, TabCompleter {
      * 处理list stats命令（显示指定属性的修饰符统计）
      */
     private void handleListStats(CommandSender sender, Player target, String stat) {
-        String result = com.baimo.attributeBinder.placeholder.PlaceholderHandler.getStatModifierStats(target, stat.toUpperCase());
+        String result = com.baimo.attributebinder.placeholder.PlaceholderHandler.getStatModifierStats(target, stat.toUpperCase());
         sender.sendMessage(ColorUtil.translateColors(result));
     }
 

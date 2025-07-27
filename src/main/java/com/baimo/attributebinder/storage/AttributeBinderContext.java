@@ -1,4 +1,4 @@
-package com.baimo.attributeBinder.manager;
+package com.baimo.attributebinder.storage;
 
 public class AttributeBinderContext {
     private static StorageManager storage;

@@ -1,4 +1,4 @@
-package com.baimo.attributeBinder.manager;
+package com.baimo.attributebinder.storage;
 
 import java.util.Map;
 import java.util.UUID;

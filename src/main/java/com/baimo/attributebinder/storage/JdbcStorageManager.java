@@ -1,4 +1,4 @@
-package com.baimo.attributeBinder.manager;
+package com.baimo.attributebinder.storage;
 
 import cn.drcomo.corelib.util.DebugUtil;
 import com.zaxxer.hikari.HikariConfig;
