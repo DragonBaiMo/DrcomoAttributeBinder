@@ -82,7 +82,7 @@ public class ListCommand implements SubCommand {
             attrs.forEach((stat, entry) -> sender.sendMessage(lang.get("command-list-item", Map.of(
                     "attribute", stat,
                     "value", CommandUtils.formatValue(entry.getValue(), entry.isPercent())
-            )));
+            ))));
         });
     }
 

@@ -41,7 +41,19 @@ public class ReplaceCommand implements SubCommand {
 
         if (Double.compare(oldVal, vp.value) == 0) {
             long oldTicks = CacheManager.getExpireTicks(uuid, stat, params.keyId);
-            long newExpire = params.expireTicks >= 0 ? params.expireTicks : oldTicks;
+            // 根据replaceExpire决定是覆盖还是累加过期时间
+            long newExpire;
+            if (params.expireTicks >= 0) {
+                if (!params.replaceExpire && oldTicks > 0) {
+                    // 如果指定了:give选项且原有过期时间大于0，则累加过期时间
+                    newExpire = oldTicks + params.expireTicks;
+                } else {
+                    // 默认覆盖模式或原有过期时间为0
+                    newExpire = params.expireTicks;
+                }
+            } else {
+                newExpire = oldTicks;
+            }
             Entry entry = CacheManager.snapshot(uuid)
                     .getOrDefault(stat, Collections.emptyMap())
                     .get(params.keyId);
@@ -53,11 +65,25 @@ public class ReplaceCommand implements SubCommand {
                     "player", target.getName(),
                     "attribute", stat,
                     "value", valStr,
-                    "key", params.keyId
+                    "key", params.keyId,
+                    "memoryOnly", String.valueOf(params.memoryOnly),
+                    "expireTicks", String.valueOf(newExpire)
             ));
         } else {
             long oldExpire = CacheManager.getExpireTicks(uuid, stat, params.keyId);
-            long newExpire = params.expireTicks >= 0 ? params.expireTicks : oldExpire;
+            // 根据replaceExpire决定是覆盖还是累加过期时间
+            long newExpire;
+            if (params.expireTicks >= 0) {
+                if (!params.replaceExpire && oldExpire > 0) {
+                    // 如果指定了:give选项且原有过期时间大于0，则累加过期时间
+                    newExpire = oldExpire + params.expireTicks;
+                } else {
+                    // 默认覆盖模式或原有过期时间为0
+                    newExpire = params.expireTicks;
+                }
+            } else {
+                newExpire = oldExpire;
+            }
             CacheManager.setAttribute(uuid, stat, params.keyId, vp.value, vp.percent, params.memoryOnly, newExpire);
             AttributeApplier.apply(uuid, stat, params.keyId, vp.value, vp.percent);
             String valStr = CommandUtils.formatValue(vp.value, vp.percent);
@@ -65,7 +91,9 @@ public class ReplaceCommand implements SubCommand {
                     "player", target.getName(),
                     "attribute", stat,
                     "value", valStr,
-                    "key", params.keyId
+                    "key", params.keyId,
+                    "memoryOnly", String.valueOf(params.memoryOnly),
+                    "expireTicks", String.valueOf(newExpire)
             ));
         }
         return true;

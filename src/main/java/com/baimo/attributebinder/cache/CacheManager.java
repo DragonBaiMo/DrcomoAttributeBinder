@@ -3,6 +3,8 @@ package com.baimo.attributebinder.cache;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
+import com.baimo.attributebinder.storage.StorageManager;
+
 /**
  * CacheManager —— 统一管理玩家属性缓存（内存）。
  * 

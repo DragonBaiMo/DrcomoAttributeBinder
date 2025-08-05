@@ -23,7 +23,7 @@ public class PlaceholderHandler {
     }
     /**
      * 占位符上下文解析结果，包含目标玩家与剩余参数
-     */
+     *
      * 解析占位符参数，支持指定其他玩家：<player>_<args> 格式
      * @param player 当前解析请求的玩家
      * @param args 原始参数字符串

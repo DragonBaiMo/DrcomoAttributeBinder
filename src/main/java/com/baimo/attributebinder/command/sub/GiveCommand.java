@@ -42,7 +42,19 @@ public class GiveCommand implements SubCommand {
 
         if (Double.compare(oldVal, newVal) == 0) {
             long oldTicks = CacheManager.getExpireTicks(uuid, stat, params.keyId);
-            long newExpire = params.expireTicks >= 0 ? params.expireTicks : oldTicks;
+            // 根据replaceExpire决定是覆盖还是保持原有过期时间
+            long newExpire;
+            if (params.expireTicks >= 0) {
+                if (params.replaceExpire) {
+                    // 使用replace选项时直接覆盖为新的过期时间
+                    newExpire = params.expireTicks;
+                } else {
+                    // 不使用replace选项时保持原有行为
+                    newExpire = params.expireTicks;
+                }
+            } else {
+                newExpire = oldTicks;
+            }
             Entry entry = CacheManager.snapshot(uuid)
                     .getOrDefault(stat, Collections.emptyMap())
                     .get(params.keyId);
@@ -60,7 +72,19 @@ public class GiveCommand implements SubCommand {
             ));
         } else {
             long oldExpire = CacheManager.getExpireTicks(uuid, stat, params.keyId);
-            long newExpire = params.expireTicks >= 0 ? oldExpire + params.expireTicks : oldExpire;
+            // 根据replaceExpire决定是覆盖还是累加过期时间
+            long newExpire;
+            if (params.expireTicks >= 0) {
+                if (params.replaceExpire) {
+                    // 使用replace选项时直接覆盖为新的过期时间
+                    newExpire = params.expireTicks;
+                } else {
+                    // 不使用replace选项时累加过期时间
+                    newExpire = oldExpire + params.expireTicks;
+                }
+            } else {
+                newExpire = oldExpire;
+            }
             CacheManager.setAttribute(uuid, stat, params.keyId, newVal, vp.percent, params.memoryOnly, newExpire);
             AttributeApplier.apply(uuid, stat, params.keyId, newVal, vp.percent);
             String valStr = CommandUtils.formatValue(newVal, vp.percent);

@@ -1,6 +1,9 @@
 package com.baimo.attributebinder.storage;
 
 import cn.drcomo.corelib.util.DebugUtil;
+
+import com.baimo.attributebinder.cache.CacheManager;
+import com.baimo.attributebinder.config.ConfigManager;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -71,21 +74,39 @@ public class JdbcStorageManager implements StorageManager {
     private void initPool() {
         HikariConfig cfg = new HikariConfig();
         if (ConfigManager.get().useMySql()) {
-            String jdbcUrl = String.format("jdbc:mysql://%s:%d/%s?useSSL=false&characterEncoding=utf8",
+            // MySQL 数据库
+            String jdbcUrl = String.format(
+                    "jdbc:mysql://%s:%d/%s?useSSL=false&characterEncoding=utf8&rewriteBatchedStatements=true",
                     ConfigManager.get().getMySqlHost(),
                     ConfigManager.get().getMySqlPort(),
                     ConfigManager.get().getMySqlDatabase());
             cfg.setJdbcUrl(jdbcUrl);
             cfg.setUsername(ConfigManager.get().getMySqlUser());
             cfg.setPassword(ConfigManager.get().getMySqlPassword());
+
+            // 性能优化
             cfg.addDataSourceProperty("cachePrepStmts", "true");
             cfg.addDataSourceProperty("prepStmtCacheSize", "250");
             cfg.addDataSourceProperty("prepStmtCacheSqlLimit", "2048");
+
+            // 连接池规模（可根据业务并发通过配置文件调整）
+            cfg.setMaximumPoolSize(10);
+            cfg.setMinimumIdle(2);
         } else {
+            // SQLite 单文件数据库，写锁限制严格，池中仅保留 1 条连接
             File dbFile = new File(plugin.getDataFolder(), ConfigManager.get().getSqliteFile());
             cfg.setJdbcUrl("jdbc:sqlite:" + dbFile.getAbsolutePath());
+
+            cfg.setMaximumPoolSize(1);
+            cfg.setMinimumIdle(1);
         }
-        cfg.setMaximumPoolSize(10);
+
+        // 通用池配置
+        cfg.setConnectionTimeout(30_000);       // 30s
+        cfg.setIdleTimeout(60_000);             // 60s
+        cfg.setMaxLifetime(10 * 60_000);        // 10min
+        cfg.setLeakDetectionThreshold(15_000);  // 15s 未归还自动报警
+
         dataSource = new HikariDataSource(cfg);
     }
 

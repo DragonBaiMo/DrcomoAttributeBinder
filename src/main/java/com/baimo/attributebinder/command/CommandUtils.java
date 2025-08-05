@@ -45,7 +45,12 @@ public final class CommandUtils {
     }
 
     public static String formatValue(double val, boolean percent) {
-        return percent ? val + "%" : (val >= 0 ? "+" + val : String.valueOf(val));
+        if (percent) {
+            // 百分比显示：直接显示输入的数值加%号
+            return String.format("%s%.1f%%", val >= 0 ? "+" : "", val);
+        } else {
+            return val >= 0 ? "+" + val : String.valueOf(val);
+        }
     }
 
     public static LinkedHashMap<String, Map<String, CacheManager.Entry>> groupSnapshotByKey(UUID uuid) {
@@ -77,9 +82,12 @@ public final class CommandUtils {
         String keyId = CacheManager.DEFAULT_KEY;
         boolean memoryOnly = false;
         long expireTicks = -1;
+        boolean replaceExpire = false;
+        
         if (args.length >= 5) {
             keyId = args[4];
         }
+        
         if (args.length >= 6) {
             try {
                 memoryOnly = Boolean.parseBoolean(args[5]);
@@ -88,24 +96,44 @@ public final class CommandUtils {
                 return null;
             }
         }
+        
         if (args.length == 7) {
-            try {
-                expireTicks = Long.parseLong(args[6]);
-            } catch (NumberFormatException e) {
-                lang.send(sender, "command-give-invalid-number");
-                return null;
+            String expireArg = args[6];
+            if (expireArg.contains(":")) {
+                String[] parts = expireArg.split(":", 2);
+                try {
+                    expireTicks = Long.parseLong(parts[0]);
+                    if (parts.length > 1 && "replace".equalsIgnoreCase(parts[1])) {
+                        replaceExpire = true;
+                    }
+                } catch (NumberFormatException e) {
+                    lang.send(sender, "command-give-invalid-number");
+                    return null;
+                }
+            } else {
+                try {
+                    expireTicks = Long.parseLong(expireArg);
+                } catch (NumberFormatException e) {
+                    lang.send(sender, "command-give-invalid-number");
+                    return null;
+                }
             }
         }
-        return new OptParams(keyId, memoryOnly, expireTicks);
+        
+        return new OptParams(keyId, memoryOnly, expireTicks, replaceExpire);
     }
 
     public static OptParams parseReplaceParams(String[] args, CommandSender sender, LangManager lang) {
         String keyId = CacheManager.DEFAULT_KEY;
         boolean memoryOnly = false;
         long expireTicks = -1;
+        boolean replaceExpire = true; // 对于replace命令，默认是覆盖模式
+        boolean giveMode = false; // 新增：是否为累加模式
+        
         if (args.length >= 5) {
             keyId = args[4];
         }
+        
         if (args.length >= 6) {
             try {
                 memoryOnly = Boolean.parseBoolean(args[5]);
@@ -114,15 +142,36 @@ public final class CommandUtils {
                 return null;
             }
         }
+        
         if (args.length == 7) {
-            try {
-                expireTicks = Long.parseLong(args[6]);
-            } catch (NumberFormatException e) {
-                lang.send(sender, "command-give-invalid-number");
-                return null;
+            String expireArg = args[6];
+            if (expireArg.contains(":")) {
+                String[] parts = expireArg.split(":", 2);
+                try {
+                    expireTicks = Long.parseLong(parts[0]);
+                    if (parts.length > 1) {
+                        if ("replace".equalsIgnoreCase(parts[1])) {
+                            replaceExpire = true; // 显式指定覆盖模式（默认就是覆盖，这里为了保持一致性）
+                        } else if ("give".equalsIgnoreCase(parts[1])) {
+                            replaceExpire = false; // 设置为累加模式
+                            giveMode = true;
+                        }
+                    }
+                } catch (NumberFormatException e) {
+                    lang.send(sender, "command-give-invalid-number");
+                    return null;
+                }
+            } else {
+                try {
+                    expireTicks = Long.parseLong(expireArg);
+                } catch (NumberFormatException e) {
+                    lang.send(sender, "command-give-invalid-number");
+                    return null;
+                }
             }
         }
-        return new OptParams(keyId, memoryOnly, expireTicks);
+        
+        return new OptParams(keyId, memoryOnly, expireTicks, replaceExpire);
     }
 
     /** 数值和百分比 */
@@ -140,10 +189,15 @@ public final class CommandUtils {
         public final String keyId;
         public final boolean memoryOnly;
         public final long expireTicks;
+        public final boolean replaceExpire;
         public OptParams(String keyId, boolean memoryOnly, long expireTicks) {
+            this(keyId, memoryOnly, expireTicks, false);
+        }
+        public OptParams(String keyId, boolean memoryOnly, long expireTicks, boolean replaceExpire) {
             this.keyId = keyId;
             this.memoryOnly = memoryOnly;
             this.expireTicks = expireTicks;
+            this.replaceExpire = replaceExpire;
         }
     }
 }

@@ -7,6 +7,8 @@ package com.baimo.attributebinder.storage;
 import java.util.Map;
 import java.util.UUID;
 
+import com.baimo.attributebinder.cache.CacheManager;
+
 public interface StorageManager {
 
     /**

@@ -17,6 +17,8 @@ import java.util.*;
  */
 public final class PlaceholderFormatter {
     private PlaceholderFormatter() {}
+    
+    /**
      * 格式化AttributeBinder管理的属性，按key分组显示
      */
     public static String formatAttributeBinderAttributes(Player player) {
@@ -170,9 +172,8 @@ public final class PlaceholderFormatter {
      */
     private static String formatAttributeValue(double value, boolean isPercent) {
         if (isPercent) {
-            double p = value * 100;
-            // 百分比值乘以100后格式化为一位小数，并加正负号和百分号
-            return String.format("%s%.1f%%", p >= 0 ? "+" : "", p);
+            // 百分比值直接显示缓存中的原始数值（如12表示12%）
+            return String.format("%s%.1f%%", value >= 0 ? "+" : "", value);
         } else {
             return value >= 0 ? "+" + value : String.valueOf(value);
         }
@@ -213,7 +214,7 @@ public final class PlaceholderFormatter {
                 ModifierSource source = modifier.getSource();
                 
                 // 判断是否为百分比类型
-                boolean isPercent = (type == ModifierType.RELATIVE || type == ModifierType.ADDITIVE_MULTIPLIER);
+                boolean isPercent = (type == ModifierType.ADDITIVE_MULTIPLIER || type == ModifierType.RELATIVE);
                 String valueStr = formatModifierValue(value, isPercent);
                 
                 String item = itemTemplate
@@ -273,7 +274,7 @@ public final class PlaceholderFormatter {
                 double value = modifier.getValue();
                 ModifierType type = modifier.getType();
                 
-                boolean isPercent = (type == ModifierType.RELATIVE || type == ModifierType.ADDITIVE_MULTIPLIER);
+                boolean isPercent = (type == ModifierType.ADDITIVE_MULTIPLIER || type == ModifierType.RELATIVE);
                 String valueStr = formatModifierValue(value, isPercent);
                 
                 String item = itemTemplate
@@ -350,12 +351,11 @@ public final class PlaceholderFormatter {
      */
     private static String formatModifierValue(double value, boolean isPercent) {
         if (isPercent) {
-            // 百分比类型：将小数转换为百分比显示
-            double percentage = value * 100;
-            return (percentage >= 0 ? "+" : "") + String.format("%.1f", percentage) + "%";
+            // 百分比类型：MMO系统中存储的是数字形式（12），直接显示为12%
+            return (value >= 0 ? "+" : "") + String.format("%.1f", value) + "%";
         } else {
-            // 固定值类型
-            return (value >= 0 ? "+" : "") + String.valueOf(value);
+            // 固定值类型：显示为整数
+            return (value >= 0 ? "+" : "") + String.format("%.0f", value);
         }
     }
     
