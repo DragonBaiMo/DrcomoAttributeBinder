@@ -3,7 +3,7 @@ debug-level: INFO
 storage:
   # 可选项: sqlite | mysql
   type: sqlite
-  
+
   # 自定义表名，默认为插件名
   table-name: attributebinder
 
@@ -20,3 +20,8 @@ storage:
 
 # 内存缓存自动写库周期（分钟）
 sync-interval-minutes: 10
+
+# 异步删除配置
+async-delete:
+  enable: true
+  thread-count: 4

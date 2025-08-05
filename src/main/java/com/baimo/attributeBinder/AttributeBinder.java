@@ -77,6 +77,7 @@ public final class AttributeBinder extends JavaPlugin {
         if (taskManager != null) {
             taskManager.shutdown();
         }
+        com.baimo.attributeBinder.task.AsyncTasks.shutdown();
         // 保存所有缓存数据并关闭存储
         // 先获取快照，再清除内存缓存，保证保存后清空
         Map<UUID, Map<String, Map<String, CacheManager.Entry>>> cacheSnapshot = CacheManager.snapshot();

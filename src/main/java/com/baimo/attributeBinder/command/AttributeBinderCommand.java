@@ -281,49 +281,58 @@ public class AttributeBinderCommand implements CommandExecutor, TabCompleter {
      */
     private boolean removeAttributesForPlayer(Player target, String stat, String keyId) {
         UUID uuid = target.getUniqueId();
-        
+
         // 获取存储管理器实例
-        com.baimo.attributeBinder.manager.StorageManager storage = 
+        com.baimo.attributeBinder.manager.StorageManager storage =
             com.baimo.attributeBinder.manager.AttributeBinderContext.getStorage();
+
+        // 收集待删除的 stat-key 列表
+        List<Map.Entry<String, String>> toDelete = new ArrayList<>();
+        Map<String, Map<String, Entry>> snapshot = CacheManager.snapshot(uuid);
 
         // 删除指定 KeyID 下所有属性
         if ("key".equalsIgnoreCase(stat)) {
             if (keyId == null) {
                 return false;
             }
-            CacheManager.snapshot(uuid)
-                    .keySet()
-                    .forEach(s -> CacheManager.removeAttribute(uuid, s, keyId));
+            snapshot.forEach((s, map) -> {
+                if (map.containsKey(keyId)) {
+                    CacheManager.removeAttribute(uuid, s, keyId);
+                    toDelete.add(Map.entry(s, keyId));
+                }
+            });
             AttributeApplier.removeKey(uuid, keyId);
-            // 同步删除数据库中的数据
-            storage.deleteAttributesByKey(uuid, keyId);
+            com.baimo.attributeBinder.task.AsyncTasks.runAsync(() ->
+                storage.deleteAttributesBatch(uuid, toDelete));
             return true;
         }
-        
+
         // 删除玩家全部属性
         if ("all".equalsIgnoreCase(stat)) {
+            snapshot.forEach((s, map) -> map.keySet().forEach(k -> toDelete.add(Map.entry(s, k))));
             CacheManager.clear(uuid);
             AttributeApplier.removeAll(uuid);
-            // 同步删除数据库中的数据
-            storage.deleteAllAttributes(uuid);
+            com.baimo.attributeBinder.task.AsyncTasks.runAsync(() ->
+                storage.deleteAttributesBatch(uuid, toDelete));
             return true;
         }
-        
+
         // 删除指定属性（所有 KeyID 或 指定 KeyID）
         if (keyId == null) {
-            CacheManager.snapshot(uuid)
-                    .getOrDefault(stat, Collections.emptyMap())
-                    .keySet()
-                    .forEach(k -> CacheManager.removeAttribute(uuid, stat, k));
+            Map<String, Entry> statMap = snapshot.getOrDefault(stat, Collections.emptyMap());
+            statMap.keySet().forEach(k -> {
+                CacheManager.removeAttribute(uuid, stat, k);
+                toDelete.add(Map.entry(stat, k));
+            });
             AttributeApplier.removeStat(uuid, stat);
-            // 同步删除数据库中的数据
-            storage.deleteAttribute(uuid, stat, null);
         } else {
             CacheManager.removeAttribute(uuid, stat, keyId);
             AttributeApplier.remove(uuid, stat, keyId);
-            // 同步删除数据库中的数据
-            storage.deleteAttribute(uuid, stat, keyId);
+            toDelete.add(Map.entry(stat, keyId));
         }
+
+        com.baimo.attributeBinder.task.AsyncTasks.runAsync(() ->
+            storage.deleteAttributesBatch(uuid, toDelete));
         return true;
     }
 

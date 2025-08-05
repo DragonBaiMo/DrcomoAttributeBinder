@@ -80,4 +80,14 @@ public class ConfigManager {
     public String getTableName() {
         return yaml.getString("config", "storage.table-name", "attributebinder");
     }
+
+    /** 是否启用异步删除 */
+    public boolean isAsyncDeleteEnabled() {
+        return yaml.getBoolean("config", "async-delete.enable", true);
+    }
+
+    /** 异步线程池线程数 */
+    public int getAsyncThreads() {
+        return yaml.getInt("config", "async-delete.thread-count", 4);
+    }
 }

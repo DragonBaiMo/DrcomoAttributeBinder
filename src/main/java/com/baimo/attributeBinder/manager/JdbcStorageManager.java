@@ -12,7 +12,9 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -244,6 +246,35 @@ public class JdbcStorageManager implements StorageManager {
             ps.executeUpdate();
         } catch (SQLException e) {
             debug.error("删除玩家所有属性失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public void deleteAttributesBatch(UUID uuid, List<Entry<String, String>> entries) {
+        if (entries == null || entries.isEmpty()) {
+            return;
+        }
+        StringBuilder sql = new StringBuilder("DELETE FROM ")
+            .append(tableName).append(" WHERE uuid = ? AND (");
+        for (int i = 0; i < entries.size(); i++) {
+            sql.append("(stat=? AND key_id=?)");
+            if (i < entries.size() - 1) {
+                sql.append(" OR ");
+            }
+        }
+        sql.append(')');
+
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+            ps.setString(1, uuid.toString());
+            int idx = 2;
+            for (Entry<String, String> en : entries) {
+                ps.setString(idx++, en.getKey().toUpperCase());
+                ps.setString(idx++, en.getValue());
+            }
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            debug.error("批量删除失败: " + e.getMessage());
         }
     }
 

@@ -1,5 +1,6 @@
 package com.baimo.attributeBinder.manager;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -40,6 +41,13 @@ public interface StorageManager {
      * @param uuid 玩家UUID
      */
     void deleteAllAttributes(UUID uuid);
+
+    /**
+     * 批量删除指定玩家的若干属性记录
+     * @param uuid 玩家UUID
+     * @param entries 待删除 stat-key 列表
+     */
+    void deleteAttributesBatch(UUID uuid, List<Map.Entry<String, String>> entries);
 
     void close();
 }
