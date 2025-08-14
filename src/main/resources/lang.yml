@@ -4,12 +4,12 @@ error-no-permission: "{prefix} &c你没有权限执行此指令。"
 error-player-not-found: "{prefix} &c玩家 {player} 不在线。"
 error-no-online-players: "{prefix} &c当前没有在线玩家。"
 
-command-main-usage: "{prefix} &e用法: /attributebinder <give|remove|list|reload|flush>"
-command-give-usage: "{prefix} &e用法: /attributebinder give <玩家> <属性> <数值> [KeyID] [memoryOnly] [过期时长(ticks)[:replace]] &7- 过期时间添加:replace选项表示覆盖而非累加过期时间"
-command-remove-usage: "{prefix} &e用法: /attributebinder remove <玩家> <属性ID|all|key> [KeyID]"
+command-main-usage: "{prefix} &e用法: /attributebinder <give|replace|remove|list|reload|flush|help>"
+command-give-usage: "{prefix} &e用法: /attributebinder give <玩家> <属性> <数值> [KeyID]/[--k:<KeyID>] [--mem:<true|false>] [--exp:<ticks>] [--md:(replace|give)] [--mx:<上限值>]"
+command-remove-usage: "{prefix} &e用法: /attributebinder remove <玩家|*> <属性ID|all|key> [KeyID]"
 command-remove-key-success: "{prefix} &e已删除玩家 {player} 的 Key {key} 下所有属性"
-command-list-usage: "{prefix} &e用法: /attributebinder list <玩家>"
-command-replace-usage: "{prefix} &e用法: /attributebinder replace <玩家> <属性> <数值> [KeyID] [memoryOnly] [过期时长(ticks)[:give]] &7- 默认覆盖过期时间，添加:give选项表示累加过期时间"
+command-list-usage: "{prefix} &e用法: /attributebinder list <玩家> [all|keys <属性>|keyattrs <KeyID>|inspect <属性>|source <属性> <来源>|stats <属性>]"
+command-replace-usage: "{prefix} &e用法: /attributebinder replace <玩家> <属性> <数值> [KeyID]/[--k:<KeyID>] [--mem:<true|false>] [--exp:<ticks>] [--md:(replace|give)]"
 
 command-reload-success: "{prefix} &a插件配置与语言文件已重载！"
 command-flush-success: "{prefix} &a已强制写入数据库并清理缓存。"
@@ -28,6 +28,9 @@ command-list-key-header: "&d{key}:"
 
 command-replace-success: "{prefix} &a已将 &b{player} &a的 &d{key} &e{attribute} 设置为 {value} &7[内存:{memoryOnly}, 过期ticks:{expireTicks}]"
 command-no-change: "{prefix} &e属性未改变，无需操作"
+
+# 弃用提示已移除（保留键以避免空指针），不再输出任何内容
+command-deprecated-expire-arg: ""
 
 # 占位符格式化配置
 # 空列表显示
@@ -83,6 +86,7 @@ command-help-header: "&e========== AttributeBinder 帮助 ==========="
 # 已整合到 command-give-usage 中
 # command-help-give-replace: "&7  give命令中的过期时间可添加:replace选项(如 20:replace)，表示覆盖而非累加过期时间"
 command-help-list-modes: "&7  list模式: all(所有属性), keys <属性>(显示key), keyattrs <KeyID>(key下属性), inspect <属性>(详细信息), source <属性> <来源>(按来源过滤), stats <属性>(统计信息)"
+command-help-options: "&7  选项: --k(KeyID) --mem(true|false) --exp(ticks) --md(replace|give) --mx(上限)"
 command-help-reload: "{prefix} &e/attributebinder reload &7- 重载配置和语言文件"
 command-help-flush: "{prefix} &e/attributebinder flush &7- 强制写入数据库并清理缓存"
 command-help-help: "{prefix} &e/attributebinder help &7- 显示此帮助信息"

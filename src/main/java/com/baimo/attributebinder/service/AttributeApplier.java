@@ -1,5 +1,6 @@
 package com.baimo.attributebinder.service;
 
+import com.baimo.attributebinder.AttributeBinder;
 import io.lumine.mythic.lib.api.player.EquipmentSlot;
 import io.lumine.mythic.lib.api.player.MMOPlayerData;
 import io.lumine.mythic.lib.api.stat.modifier.StatModifier;
@@ -28,24 +29,27 @@ public class AttributeApplier {
      * @param percent 当为 true 时，value 必须以“百分数”传入：如 12% 传 12.0
      */
     public static void apply(UUID uuid, String stat, String keyId, double value, boolean percent) {
-        Player player = Bukkit.getPlayer(uuid);
-        if (player == null) return;
+        Runnable task = () -> {
+            Player player = Bukkit.getPlayer(uuid);
+            if (player == null) return;
 
-        MMOPlayerData data = MMOPlayerData.get(uuid);
-        String statUpper = stat.toUpperCase();
+            MMOPlayerData data = MMOPlayerData.get(uuid);
+            String statUpper = stat.toUpperCase();
 
-        // 安全：先清理本插件在该 stat + keyId 下的同类型遗留，避免混合乘区
-        cleanupSameChannel(data, statUpper, keyId, percent);
+            // 安全：先清理本插件在该 stat + keyId 下的同类型遗留，避免混合乘区
+            cleanupSameChannel(data, statUpper, keyId, percent);
 
-        StatModifier modifier = new StatModifier(
-                modifierId(statUpper, keyId),
-                statUpper,
-                value,
-                percent ? ModifierType.ADDITIVE_MULTIPLIER : ModifierType.FLAT,
-                EquipmentSlot.OTHER,
-                ModifierSource.OTHER
-        );
-        data.getStatMap().getInstance(statUpper).registerModifier(modifier);
+            StatModifier modifier = new StatModifier(
+                    modifierId(statUpper, keyId),
+                    statUpper,
+                    value,
+                    percent ? ModifierType.ADDITIVE_MULTIPLIER : ModifierType.FLAT,
+                    EquipmentSlot.OTHER,
+                    ModifierSource.OTHER
+            );
+            data.getStatMap().getInstance(statUpper).registerModifier(modifier);
+        };
+        runOnMain(task);
     }
 
     /** 清理同一 stat+keyId 下本插件产生的同通道修饰符，防止遗留叠加 */
@@ -77,36 +81,52 @@ public class AttributeApplier {
      * 移除指定 stat + keyId 下的修饰符
      */
     public static void remove(UUID uuid, String stat, String keyId) {
-        MMOPlayerData data = MMOPlayerData.get(uuid);
-        String statUpper = stat.toUpperCase();
-        String id = modifierId(statUpper, keyId);
-        data.getStatMap().getInstance(statUpper).removeIf(id::equals);
-        data.getStatMap().updateAll();
+        runOnMain(() -> {
+            MMOPlayerData data = MMOPlayerData.get(uuid);
+            String statUpper = stat.toUpperCase();
+            String id = modifierId(statUpper, keyId);
+            data.getStatMap().getInstance(statUpper).removeIf(id::equals);
+            data.getStatMap().updateAll();
+        });
     }
 
     /**
      * 移除所有本插件添加的修饰符
      */
     public static void removeAll(UUID uuid) {
-        MMOPlayerData data = MMOPlayerData.get(uuid);
-        removeModifiers(data, key -> key.startsWith(MOD_PREFIX));
+        runOnMain(() -> {
+            MMOPlayerData data = MMOPlayerData.get(uuid);
+            removeModifiers(data, key -> key.startsWith(MOD_PREFIX));
+        });
     }
 
     /**
      * 移除指定 keyId 对应的所有修饰符
      */
     public static void removeKey(UUID uuid, String keyId) {
-        MMOPlayerData data = MMOPlayerData.get(uuid);
-        String prefix = MOD_PREFIX + keyId + "_";
-        removeModifiers(data, key -> key.startsWith(prefix));
+        runOnMain(() -> {
+            MMOPlayerData data = MMOPlayerData.get(uuid);
+            String prefix = MOD_PREFIX + keyId + "_";
+            removeModifiers(data, key -> key.startsWith(prefix));
+        });
     }
 
     /**
      * 移除指定 stat 对应的所有修饰符
      */
     public static void removeStat(UUID uuid, String stat) {
-        MMOPlayerData data = MMOPlayerData.get(uuid);
-        String statUpper = stat.toUpperCase();
-        removeModifiers(data, key -> key.startsWith(MOD_PREFIX) && key.endsWith("_" + statUpper));
+        runOnMain(() -> {
+            MMOPlayerData data = MMOPlayerData.get(uuid);
+            String statUpper = stat.toUpperCase();
+            removeModifiers(data, key -> key.startsWith(MOD_PREFIX) && key.endsWith("_" + statUpper));
+        });
+    }
+
+    private static void runOnMain(Runnable task) {
+        if (Bukkit.isPrimaryThread()) {
+            task.run();
+        } else {
+            Bukkit.getScheduler().runTask(AttributeBinder.getInstance(), task);
+        }
     }
 }

@@ -22,7 +22,7 @@ public class GiveCommand implements SubCommand {
 
     @Override
     public boolean execute(CommandSender sender, String[] args) {
-        if (args.length < 4 || args.length > 7) {
+        if (args.length < 4) {
             lang.send(sender, "command-give-usage");
             return true;
         }
@@ -38,23 +38,24 @@ public class GiveCommand implements SubCommand {
 
         UUID uuid = target.getUniqueId();
         double oldVal = CacheManager.getAttribute(uuid, stat, params.keyId);
-        double newVal = oldVal + vp.value;
+        // 叠加总值上限：若指定 --max，则不超过此上限；未指定则按旧逻辑（叠加）
+        // 计算候选新值（叠加），若指定 --max 则裁剪
+        double candidate = oldVal + vp.value;
+        double newVal = params.maxValue >= 0 ? Math.min(candidate, params.maxValue) : candidate;
 
-        if (Double.compare(oldVal, newVal) == 0) {
-            long oldTicks = CacheManager.getExpireTicks(uuid, stat, params.keyId);
-            // 根据replaceExpire决定是覆盖还是保持原有过期时间
-            long newExpire;
-            if (params.expireTicks >= 0) {
-                if (params.replaceExpire) {
-                    // 使用replace选项时直接覆盖为新的过期时间
-                    newExpire = params.expireTicks;
-                } else {
-                    // 不使用replace选项时保持原有行为
-                    newExpire = params.expireTicks;
-                }
-            } else {
-                newExpire = oldTicks;
-            }
+		if (Double.compare(oldVal, newVal) == 0) {
+			long oldTicks = CacheManager.getExpireTicks(uuid, stat, params.keyId);
+			// 过期时间新语义：-1=永久，0=移除，>0 按模式处理；未提供时解析层已默认 -1
+			long newExpire;
+			if (params.expireTicks == -1L) {
+				newExpire = -1L;
+			} else if (params.expireTicks == 0L) {
+				newExpire = 0L;
+			} else if (params.expireTicks > 0L) {
+				newExpire = params.replaceExpire ? params.expireTicks : (oldTicks > 0L ? oldTicks + params.expireTicks : params.expireTicks);
+			} else {
+				newExpire = oldTicks;
+			}
             Entry entry = CacheManager.snapshot(uuid)
                     .getOrDefault(stat, Collections.emptyMap())
                     .get(params.keyId);
@@ -70,21 +71,19 @@ public class GiveCommand implements SubCommand {
                     "memoryOnly", String.valueOf(oldMemory),
                     "expireTicks", String.valueOf(newExpire)
             ));
-        } else {
-            long oldExpire = CacheManager.getExpireTicks(uuid, stat, params.keyId);
-            // 根据replaceExpire决定是覆盖还是累加过期时间
-            long newExpire;
-            if (params.expireTicks >= 0) {
-                if (params.replaceExpire) {
-                    // 使用replace选项时直接覆盖为新的过期时间
-                    newExpire = params.expireTicks;
-                } else {
-                    // 不使用replace选项时累加过期时间
-                    newExpire = oldExpire + params.expireTicks;
-                }
-            } else {
-                newExpire = oldExpire;
-            }
+		} else {
+			long oldExpire = CacheManager.getExpireTicks(uuid, stat, params.keyId);
+			// 过期时间新语义：-1=永久，0=移除，>0 按模式处理；未提供时解析层已默认 -1
+			long newExpire;
+			if (params.expireTicks == -1L) {
+				newExpire = -1L;
+			} else if (params.expireTicks == 0L) {
+				newExpire = 0L;
+			} else if (params.expireTicks > 0L) {
+				newExpire = params.replaceExpire ? params.expireTicks : (oldExpire > 0L ? oldExpire + params.expireTicks : params.expireTicks);
+			} else {
+				newExpire = oldExpire;
+			}
             CacheManager.setAttribute(uuid, stat, params.keyId, newVal, vp.percent, params.memoryOnly, newExpire);
             AttributeApplier.apply(uuid, stat, params.keyId, newVal, vp.percent);
             String valStr = CommandUtils.formatValue(newVal, vp.percent);
@@ -98,5 +97,25 @@ public class GiveCommand implements SubCommand {
             ));
         }
         return true;
+    }
+
+    @Override
+    public java.util.List<String> optionSuggestions(int argIndex, String partial, CommandSender sender, String[] args) {
+        java.util.List<String> options = new java.util.ArrayList<>();
+        // 最简选项集合：仅提供短参数
+        options.add("--k=");
+        options.add("--mem=");
+        options.add("--exp=");
+        options.add("--md=");
+        options.add("--mx=");
+
+        if (partial == null || partial.isEmpty()) return options;
+        java.util.List<String> result = new java.util.ArrayList<>();
+        for (String opt : options) {
+            if (opt.regionMatches(true, 0, partial, 0, partial.length())) {
+                result.add(opt);
+            }
+        }
+        return result;
     }
 }

@@ -39,21 +39,19 @@ public class ReplaceCommand implements SubCommand {
         UUID uuid = target.getUniqueId();
         double oldVal = CacheManager.getAttribute(uuid, stat, params.keyId);
 
-        if (Double.compare(oldVal, vp.value) == 0) {
-            long oldTicks = CacheManager.getExpireTicks(uuid, stat, params.keyId);
-            // 根据replaceExpire决定是覆盖还是累加过期时间
-            long newExpire;
-            if (params.expireTicks >= 0) {
-                if (!params.replaceExpire && oldTicks > 0) {
-                    // 如果指定了:give选项且原有过期时间大于0，则累加过期时间
-                    newExpire = oldTicks + params.expireTicks;
-                } else {
-                    // 默认覆盖模式或原有过期时间为0
-                    newExpire = params.expireTicks;
-                }
-            } else {
-                newExpire = oldTicks;
-            }
+		if (Double.compare(oldVal, vp.value) == 0) {
+			long oldTicks = CacheManager.getExpireTicks(uuid, stat, params.keyId);
+			// 过期时间新语义：-1=永久，0=移除，>0 按模式处理；未提供时解析层已默认 -1
+			long newExpire;
+			if (params.expireTicks == -1L) {
+				newExpire = -1L;
+			} else if (params.expireTicks == 0L) {
+				newExpire = 0L;
+			} else if (params.expireTicks > 0L) {
+				newExpire = (!params.replaceExpire && oldTicks > 0L) ? oldTicks + params.expireTicks : params.expireTicks;
+			} else {
+				newExpire = oldTicks;
+			}
             Entry entry = CacheManager.snapshot(uuid)
                     .getOrDefault(stat, Collections.emptyMap())
                     .get(params.keyId);
@@ -69,21 +67,19 @@ public class ReplaceCommand implements SubCommand {
                     "memoryOnly", String.valueOf(params.memoryOnly),
                     "expireTicks", String.valueOf(newExpire)
             ));
-        } else {
-            long oldExpire = CacheManager.getExpireTicks(uuid, stat, params.keyId);
-            // 根据replaceExpire决定是覆盖还是累加过期时间
-            long newExpire;
-            if (params.expireTicks >= 0) {
-                if (!params.replaceExpire && oldExpire > 0) {
-                    // 如果指定了:give选项且原有过期时间大于0，则累加过期时间
-                    newExpire = oldExpire + params.expireTicks;
-                } else {
-                    // 默认覆盖模式或原有过期时间为0
-                    newExpire = params.expireTicks;
-                }
-            } else {
-                newExpire = oldExpire;
-            }
+		} else {
+			long oldExpire = CacheManager.getExpireTicks(uuid, stat, params.keyId);
+			// 过期时间新语义：-1=永久，0=移除，>0 按模式处理；未提供时解析层已默认 -1
+			long newExpire;
+			if (params.expireTicks == -1L) {
+				newExpire = -1L;
+			} else if (params.expireTicks == 0L) {
+				newExpire = 0L;
+			} else if (params.expireTicks > 0L) {
+				newExpire = (!params.replaceExpire && oldExpire > 0L) ? oldExpire + params.expireTicks : params.expireTicks;
+			} else {
+				newExpire = oldExpire;
+			}
             CacheManager.setAttribute(uuid, stat, params.keyId, vp.value, vp.percent, params.memoryOnly, newExpire);
             AttributeApplier.apply(uuid, stat, params.keyId, vp.value, vp.percent);
             String valStr = CommandUtils.formatValue(vp.value, vp.percent);
@@ -97,5 +93,24 @@ public class ReplaceCommand implements SubCommand {
             ));
         }
         return true;
+    }
+
+    @Override
+    public java.util.List<String> optionSuggestions(int argIndex, String partial, CommandSender sender, String[] args) {
+        java.util.List<String> options = new java.util.ArrayList<>();
+        // 最简选项集合：仅提供短参数
+        options.add("--k=");
+        options.add("--mem=");
+        options.add("--exp=");
+        options.add("--md=");
+
+        if (partial == null || partial.isEmpty()) return options;
+        java.util.List<String> result = new java.util.ArrayList<>();
+        for (String opt : options) {
+            if (opt.regionMatches(true, 0, partial, 0, partial.length())) {
+                result.add(opt);
+            }
+        }
+        return result;
     }
 }

@@ -68,12 +68,12 @@ public class AttributeBinderCommand implements CommandExecutor, TabCompleter {
                 LangManager.get().reload();
                 AttributeBinder.getInstance().resetFlushTask(ConfigManager.get().getSyncIntervalMinutes());
                 AttributeBinder.getInstance().updateDebugLevel();
-                lang.send(sender, "command-reload-success");
+                CommandUtils.sendSuccess(lang, sender, "command-reload-success");
                 break;
             case "flush":
                 if (!checkPermission(sender, "attributebinder.admin", "error-no-permission")) return true;
                 new FlushTask().runTaskAsynchronously(AttributeBinder.getInstance());
-                lang.send(sender, "command-flush-success");
+                CommandUtils.sendSuccess(lang, sender, "command-flush-success");
                 break;
             case "help":
                 handleHelp(sender);
@@ -167,6 +167,25 @@ public class AttributeBinderCommand implements CommandExecutor, TabCompleter {
                         .sorted().collect(Collectors.toList());
         }
         
+        // 其余参数位置：为 give/replace 提供 -- 参数补全
+        if (Arrays.asList("give", "replace", "remove", "list").contains(sub) && args.length >= 4) {
+            com.baimo.attributebinder.command.sub.SubCommand impl = switch (sub) {
+                case "give" -> giveCmd;
+                case "replace" -> replaceCmd;
+                case "remove" -> removeCmd;
+                case "list" -> listCmd;
+                default -> null;
+            };
+            if (impl != null) {
+                String partial = args[args.length - 1];
+                List<String> opts = impl.optionSuggestions(args.length, partial, sender, args);
+                if (opts != null && !opts.isEmpty()) {
+                    return StringUtil.copyPartialMatches(partial, opts, new ArrayList<>()).stream()
+                            .sorted().collect(Collectors.toList());
+                }
+            }
+        }
+
         return Collections.emptyList();
     }
 
@@ -175,16 +194,17 @@ public class AttributeBinderCommand implements CommandExecutor, TabCompleter {
      * 参数格式: give <玩家> <属性> <数值> [KeyID] [memoryOnly] [过期时长ticks]
      */
     private void handleHelp(CommandSender sender) {
-        lang.send(sender, "command-help-header");
-        lang.send(sender, "command-give-usage");
-        lang.send(sender, "command-remove-usage");
-        lang.send(sender, "command-replace-usage");
-        lang.send(sender, "command-list-usage");
-        lang.send(sender, "command-help-list-modes");
-        lang.send(sender, "command-help-reload");
-        lang.send(sender, "command-help-flush");
-        lang.send(sender, "command-help-help");
-        lang.send(sender, "command-help-footer");
+        CommandUtils.sendSuccess(lang, sender, "command-help-header");
+        CommandUtils.sendSuccess(lang, sender, "command-give-usage");
+        CommandUtils.sendSuccess(lang, sender, "command-remove-usage");
+        CommandUtils.sendSuccess(lang, sender, "command-replace-usage");
+        CommandUtils.sendSuccess(lang, sender, "command-list-usage");
+        CommandUtils.sendSuccess(lang, sender, "command-help-list-modes");
+        CommandUtils.sendSuccess(lang, sender, "command-help-options");
+        CommandUtils.sendSuccess(lang, sender, "command-help-reload");
+        CommandUtils.sendSuccess(lang, sender, "command-help-flush");
+        CommandUtils.sendSuccess(lang, sender, "command-help-help");
+        CommandUtils.sendSuccess(lang, sender, "command-help-footer");
     }
 
     // --------------------------------------

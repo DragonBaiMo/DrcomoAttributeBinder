@@ -19,8 +19,8 @@ public class CacheManager {
         private boolean percent;
         /** 是否仅内存周期（不跨服） */
         private boolean memoryOnly;
-        /** 过期时长（ticks） */
-        private long expireTicks;
+		/** 过期时长（ticks）。-1=永久，0=应移除，>0=剩余ticks */
+		private long expireTicks;
 
         public Entry(double value, boolean percent) {
             this(value, percent, false);
@@ -207,9 +207,14 @@ public class CacheManager {
                     Map.Entry<String, Entry> keyEntry = keyIt.next();
                     String keyId = keyEntry.getKey();
                     Entry entry = keyEntry.getValue();
-                    if (entry.getExpireTicks() > 0) {
-                        long ticks = entry.getExpireTicks() - CLEANUP_INTERVAL_TICKS;
-                        if (ticks <= 0) {
+			if (entry.getExpireTicks() != 0) {
+				long current = entry.getExpireTicks();
+				if (current < 0) {
+					// 永久
+					continue;
+				}
+				long ticks = current - CLEANUP_INTERVAL_TICKS;
+				if (ticks <= 0) {
                             keyIt.remove();
                             com.baimo.attributebinder.service.AttributeApplier.remove(uuid, stat, keyId);
                             if (!entry.isMemoryOnly() && storage != null) {

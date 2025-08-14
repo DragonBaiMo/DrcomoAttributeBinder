@@ -69,6 +69,12 @@ public class ListCommand implements SubCommand {
         return true;
     }
 
+    @Override
+    public java.util.List<String> optionSuggestions(int argIndex, String partial, CommandSender sender, String[] args) {
+        // 当前 list 无 -- 参数，返回空
+        return java.util.Collections.emptyList();
+    }
+
     private void handleListDefault(CommandSender sender, Player target) {
         UUID uuid = target.getUniqueId();
         Map<String, Map<String, Entry>> byKey = CommandUtils.groupSnapshotByKey(uuid);

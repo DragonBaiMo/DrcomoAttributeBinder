@@ -218,6 +218,6 @@ public final class AttributeBinder extends JavaPlugin {
     /** 调度过期缓存清理任务 */
     private void scheduleExpireTask() {
         long ticks = CacheManager.CLEANUP_INTERVAL_TICKS;
-        new ExpireTask(storage).runTaskTimer(this, ticks, ticks);
+		new ExpireTask(storage).runTaskTimerAsynchronously(this, ticks, ticks);
     }
 }

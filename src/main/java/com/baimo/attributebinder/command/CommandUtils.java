@@ -1,8 +1,5 @@
 package com.baimo.attributebinder.command;
-
-import cn.drcomo.corelib.color.ColorUtil;
 import com.baimo.attributebinder.cache.CacheManager;
-import com.baimo.attributebinder.command.CommandUtils.ValuePair;
 import com.baimo.attributebinder.config.LangManager;
 import net.Indyuce.mmoitems.MMOItems;
 import net.Indyuce.mmoitems.stat.type.DoubleStat;
@@ -10,16 +7,32 @@ import net.Indyuce.mmoitems.stat.type.ItemStat;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-import org.bukkit.util.StringUtil;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * CommandUtils — 存放自己常用的命令助手函数
  */
 public final class CommandUtils {
     private CommandUtils() {}
+
+    /**
+     * 仅向玩家发送成功类消息；若为控制台（非玩家），则不发送。
+     */
+    public static void sendSuccess(LangManager lang, CommandSender sender, String key) {
+        if (sender instanceof Player) {
+            lang.send(sender, key);
+        }
+    }
+
+    /**
+     * 仅向玩家发送成功类消息（带参数）；若为控制台（非玩家），则不发送。
+     */
+    public static void sendSuccess(LangManager lang, CommandSender sender, String key, Map<String, String> params) {
+        if (sender instanceof Player) {
+            lang.send(sender, key, params);
+        }
+    }
 
     public static Player getPlayer(String name, CommandSender sender, LangManager lang) {
         Player player = Bukkit.getPlayer(name);
@@ -79,99 +92,181 @@ public final class CommandUtils {
     }
 
     public static OptParams parseGiveParams(String[] args, CommandSender sender, LangManager lang) {
-        String keyId = CacheManager.DEFAULT_KEY;
-        boolean memoryOnly = false;
-        long expireTicks = -1;
-        boolean replaceExpire = false;
-        
-        if (args.length >= 5) {
-            keyId = args[4];
-        }
-        
-        if (args.length >= 6) {
-            try {
-                memoryOnly = Boolean.parseBoolean(args[5]);
-            } catch (Exception e) {
-                lang.send(sender, "command-give-usage");
-                return null;
-            }
-        }
-        
-        if (args.length == 7) {
-            String expireArg = args[6];
-            if (expireArg.contains(":")) {
-                String[] parts = expireArg.split(":", 2);
+        // 新结构：-- 开头的参数优先解析；旧结构：保留兼容，转交给弃用方法解析
+        String keyId = null;                 // 若未通过 -- 指定，则走旧结构
+        Boolean memoryOnly = null;           // 三态：null=未指定
+        Long expireTicks = null;             // null=未指定；最终默认-1永久
+        Boolean replaceExpire = null;        // null=未指定
+        double maxValue = -1D;               // 默认无限制
+
+        // 解析 -- 参数
+        for (int i = 4; i < args.length; i++) {
+            String token = args[i];
+            if (!token.startsWith("--")) continue;
+            String opt = token.substring(2);
+
+            // --max | --mx
+            String v;
+            v = extractOptionValue(opt, "max", "mx");
+            if (v != null) {
                 try {
-                    expireTicks = Long.parseLong(parts[0]);
-                    if (parts.length > 1 && "replace".equalsIgnoreCase(parts[1])) {
-                        replaceExpire = true;
-                    }
+                    maxValue = Double.parseDouble(v);
                 } catch (NumberFormatException e) {
                     lang.send(sender, "command-give-invalid-number");
                     return null;
                 }
-            } else {
+                continue;
+            }
+
+            // --mode | --md
+            v = extractOptionValue(opt, "mode", "md");
+            if (v != null) {
+                if ("replace".equalsIgnoreCase(v)) {
+                    replaceExpire = true;
+                } else if ("give".equalsIgnoreCase(v)) {
+                    replaceExpire = false;
+                } else {
+                    lang.send(sender, "command-give-usage");
+                    return null;
+                }
+                continue;
+            }
+
+            // --key | --k
+            v = extractOptionValue(opt, "key", "k");
+            if (v != null) {
+                keyId = v;
+                continue;
+            }
+
+            // --memoryOnly | --memory-only | --memory | --mem | --m
+            v = extractOptionValue(opt, "memoryOnly", "memory-only", "memory", "mem", "m");
+            if (v != null) {
+                if (v.isEmpty()) {
+                    memoryOnly = true; // 无显式值时，视为 true
+                } else {
+                    memoryOnly = Boolean.parseBoolean(v);
+                }
+                continue;
+            }
+
+            // --expire | --exp | --e
+            v = extractOptionValue(opt, "expire", "exp", "e");
+            if (v != null) {
                 try {
-                    expireTicks = Long.parseLong(expireArg);
+                    expireTicks = Long.parseLong(v);
                 } catch (NumberFormatException e) {
                     lang.send(sender, "command-give-invalid-number");
                     return null;
                 }
+                continue;
             }
         }
-        
-        return new OptParams(keyId, memoryOnly, expireTicks, replaceExpire);
+
+        // 收集旧结构剩余参数（非 --），交给弃用方法解析
+        List<String> legacy = new ArrayList<>();
+        for (int i = 4; i < args.length; i++) {
+            if (!args[i].startsWith("--")) legacy.add(args[i]);
+        }
+        OptParams legacyParams = parseGiveParamsLegacy(legacy, sender, lang);
+
+        // 合并优先级：新结构 -- 覆盖旧结构
+        String finalKey = (keyId != null ? keyId : legacyParams.keyId);
+        boolean finalMemory = (memoryOnly != null ? memoryOnly : legacyParams.memoryOnly);
+        long finalExpire = (expireTicks != null ? expireTicks : (legacyParams.expireTicks >= 0 ? legacyParams.expireTicks : -1L));
+        boolean finalReplace = (replaceExpire != null ? replaceExpire : legacyParams.replaceExpire);
+
+        return new OptParams(finalKey, finalMemory, finalExpire, finalReplace, maxValue);
     }
 
     public static OptParams parseReplaceParams(String[] args, CommandSender sender, LangManager lang) {
-        String keyId = CacheManager.DEFAULT_KEY;
-        boolean memoryOnly = false;
-        long expireTicks = -1;
-        boolean replaceExpire = true; // 对于replace命令，默认是覆盖模式
-        boolean giveMode = false; // 新增：是否为累加模式
-        
-        if (args.length >= 5) {
-            keyId = args[4];
-        }
-        
-        if (args.length >= 6) {
-            try {
-                memoryOnly = Boolean.parseBoolean(args[5]);
-            } catch (Exception e) {
-                lang.send(sender, "command-replace-usage");
-                return null;
+        String keyId = null;                 // 三态：null 表示未通过 -- 指定
+        Boolean memoryOnly = null;           // 三态：null 表示未指定
+        Long expireTicks = null;             // 三态：null 表示未指定；最终默认-1永久
+        Boolean replaceExpire = null;        // 三态：null 表示未指定；replace 命令默认 true（覆盖）
+
+        // 新结构 -- 参数优先
+        for (int i = 4; i < args.length; i++) {
+            String token = args[i];
+            if (!token.startsWith("--")) continue;
+            String opt = token.substring(2);
+
+            // --mode | --md
+            String v;
+            v = extractOptionValue(opt, "mode", "md");
+            if (v != null) {
+                if ("replace".equalsIgnoreCase(v)) {
+                    replaceExpire = true;
+                } else if ("give".equalsIgnoreCase(v)) {
+                    replaceExpire = false;
+                } else {
+                    lang.send(sender, "command-replace-usage");
+                    return null;
+                }
+                continue;
             }
-        }
-        
-        if (args.length == 7) {
-            String expireArg = args[6];
-            if (expireArg.contains(":")) {
-                String[] parts = expireArg.split(":", 2);
+            // --key | --k
+            v = extractOptionValue(opt, "key", "k");
+            if (v != null) {
+                keyId = v;
+                continue;
+            }
+            // --memoryOnly | --memory-only | --memory | --mem | --m
+            v = extractOptionValue(opt, "memoryOnly", "memory-only", "memory", "mem", "m");
+            if (v != null) {
+                if (v.isEmpty()) {
+                    memoryOnly = true;
+                } else {
+                    memoryOnly = Boolean.parseBoolean(v);
+                }
+                continue;
+            }
+            // --expire | --exp | --e
+            v = extractOptionValue(opt, "expire", "exp", "e");
+            if (v != null) {
                 try {
-                    expireTicks = Long.parseLong(parts[0]);
-                    if (parts.length > 1) {
-                        if ("replace".equalsIgnoreCase(parts[1])) {
-                            replaceExpire = true; // 显式指定覆盖模式（默认就是覆盖，这里为了保持一致性）
-                        } else if ("give".equalsIgnoreCase(parts[1])) {
-                            replaceExpire = false; // 设置为累加模式
-                            giveMode = true;
-                        }
-                    }
+                    expireTicks = Long.parseLong(v);
                 } catch (NumberFormatException e) {
                     lang.send(sender, "command-give-invalid-number");
                     return null;
                 }
-            } else {
-                try {
-                    expireTicks = Long.parseLong(expireArg);
-                } catch (NumberFormatException e) {
-                    lang.send(sender, "command-give-invalid-number");
-                    return null;
-                }
+                continue;
             }
         }
-        
-        return new OptParams(keyId, memoryOnly, expireTicks, replaceExpire);
+
+        // 旧结构（位置参数）
+        OptParams legacy = parseReplaceParamsLegacy(collectLegacy(args, 4), sender, lang);
+
+        String finalKey = (keyId != null ? keyId : legacy.keyId);
+        boolean finalMemoryOnly = (memoryOnly != null ? memoryOnly : legacy.memoryOnly);
+        long finalExpire = (expireTicks != null ? expireTicks : (legacy.expireTicks >= 0 ? legacy.expireTicks : -1L));
+        boolean finalReplace = (replaceExpire != null ? replaceExpire : legacy.replaceExpire);
+
+        return new OptParams(finalKey, finalMemoryOnly, finalExpire, finalReplace);
+    }
+
+    /**
+     * 从 opt 字符串中匹配并提取选项值，支持 "name=value"、"name:value"、以及 "name"（无值）形式。
+     * 若匹配成功：
+     *  - 返回值字符串；
+     *  - 当无显式值（仅有名称）时返回空字符串 ""；
+     * 若均未匹配，返回 null。
+     */
+    private static String extractOptionValue(String opt, String... names) {
+        for (String name : names) {
+            String prefixEq = name + "=";
+            String prefixColon = name + ":";
+            if (opt.startsWith(prefixEq)) {
+                return opt.substring(prefixEq.length());
+            }
+            if (opt.startsWith(prefixColon)) {
+                return opt.substring(prefixColon.length());
+            }
+            if (opt.equals(name)) {
+                return ""; // 仅名称，无值
+            }
+        }
+        return null;
     }
 
     /** 数值和百分比 */
@@ -190,14 +285,130 @@ public final class CommandUtils {
         public final boolean memoryOnly;
         public final long expireTicks;
         public final boolean replaceExpire;
+        public final double maxValue; // 叠加总值上限
         public OptParams(String keyId, boolean memoryOnly, long expireTicks) {
-            this(keyId, memoryOnly, expireTicks, false);
+            this(keyId, memoryOnly, expireTicks, false, -1D);
         }
         public OptParams(String keyId, boolean memoryOnly, long expireTicks, boolean replaceExpire) {
+            this(keyId, memoryOnly, expireTicks, replaceExpire, -1D);
+        }
+        public OptParams(String keyId, boolean memoryOnly, long expireTicks, boolean replaceExpire, double maxValue) {
             this.keyId = keyId;
             this.memoryOnly = memoryOnly;
             this.expireTicks = expireTicks;
             this.replaceExpire = replaceExpire;
+            this.maxValue = maxValue;
         }
+    }
+
+    /**
+     * 仅解析旧结构位置参数：[KeyID] [memoryOnly] [ticks[:replace|give]]
+     * 已弃用：仅供向后兼容，建议使用 -- 参数。
+     */
+    @Deprecated
+    private static OptParams parseGiveParamsLegacy(List<String> legacy, CommandSender sender, LangManager lang) {
+        String keyId = CacheManager.DEFAULT_KEY;
+        boolean memoryOnly = false;
+        long expireTicks = -1L; // 默认永久
+        boolean replaceExpire = false;
+
+        int idx = 0;
+        if (idx < legacy.size()) {
+            keyId = legacy.get(idx++);
+        }
+        if (idx < legacy.size()) {
+            String t = legacy.get(idx);
+            if ("true".equalsIgnoreCase(t) || "false".equalsIgnoreCase(t)) {
+                memoryOnly = Boolean.parseBoolean(t);
+                idx++;
+            }
+        }
+        if (idx < legacy.size()) {
+            String t = legacy.get(idx);
+            if (t.contains(":")) {
+                String[] parts = t.split(":", 2);
+                try {
+                    expireTicks = Long.parseLong(parts[0]);
+                } catch (NumberFormatException e) {
+                    lang.send(sender, "command-give-invalid-number");
+                    return null;
+                }
+                if (parts.length > 1) {
+                    if ("replace".equalsIgnoreCase(parts[1])) replaceExpire = true;
+                    else if ("give".equalsIgnoreCase(parts[1])) replaceExpire = false;
+                    else {
+                        lang.send(sender, "command-give-usage");
+                        return null;
+                    }
+                }
+            } else {
+                try {
+                    expireTicks = Long.parseLong(t);
+                } catch (NumberFormatException e) {
+                    lang.send(sender, "command-give-invalid-number");
+                    return null;
+                }
+            }
+        }
+
+        if (legacy.size() >= 3) {
+            // 第7位旧形式，提示弃用
+            lang.send(sender, "command-deprecated-expire-arg");
+        }
+        return new OptParams(keyId, memoryOnly, expireTicks, replaceExpire);
+    }
+
+    @Deprecated
+    private static OptParams parseReplaceParamsLegacy(List<String> legacy, CommandSender sender, LangManager lang) {
+        String keyId = CacheManager.DEFAULT_KEY;
+        boolean memoryOnly = false;
+        long expireTicks = -1L; // 默认永久
+        boolean replaceExpire = true; // replace 默认覆盖
+
+        int idx = 0;
+        if (idx < legacy.size()) keyId = legacy.get(idx++);
+        if (idx < legacy.size()) {
+            String t = legacy.get(idx);
+            if ("true".equalsIgnoreCase(t) || "false".equalsIgnoreCase(t)) {
+                memoryOnly = Boolean.parseBoolean(t);
+                idx++;
+            }
+        }
+        if (idx < legacy.size()) {
+            String t = legacy.get(idx);
+            if (t.contains(":")) {
+                String[] parts = t.split(":", 2);
+                try {
+                    expireTicks = Long.parseLong(parts[0]);
+                } catch (NumberFormatException e) {
+                    lang.send(sender, "command-give-invalid-number");
+                    return null;
+                }
+                if (parts.length > 1) {
+                    if ("replace".equalsIgnoreCase(parts[1])) replaceExpire = true;
+                    else if ("give".equalsIgnoreCase(parts[1])) replaceExpire = false;
+                    else {
+                        lang.send(sender, "command-replace-usage");
+                        return null;
+                    }
+                }
+            } else {
+                try {
+                    expireTicks = Long.parseLong(t);
+                } catch (NumberFormatException e) {
+                    lang.send(sender, "command-give-invalid-number");
+                    return null;
+                }
+            }
+        }
+        return new OptParams(keyId, memoryOnly, expireTicks, replaceExpire);
+    }
+
+    private static List<String> collectLegacy(String[] args, int startIndex) {
+        List<String> legacy = new ArrayList<>();
+        for (int i = startIndex; i < args.length; i++) {
+            if (!args[i].startsWith("--")) legacy.add(args[i]);
+        }
+        return legacy;
     }
 }

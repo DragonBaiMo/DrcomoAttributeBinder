@@ -38,6 +38,7 @@ public class JdbcStorageManager implements StorageManager {
     private final String DELETE_STAT_SQL;
     private final String DELETE_ATTRIBUTE_SQL;
     private final String DELETE_KEY_SQL;
+	private final String DELETE_EXPIRED_BY_UUID_SQL;
     private final String SELECT_SQL;
     private final String ALTER_TABLE_SQL;
 
@@ -60,7 +61,8 @@ public class JdbcStorageManager implements StorageManager {
         this.DELETE_SQL = "DELETE FROM " + tableName + " WHERE uuid = ?";
         this.DELETE_STAT_SQL = "DELETE FROM " + tableName + " WHERE uuid = ? AND stat = ?";
         this.DELETE_ATTRIBUTE_SQL = "DELETE FROM " + tableName + " WHERE uuid = ? AND stat = ? AND key_id = ?";
-        this.DELETE_KEY_SQL = "DELETE FROM " + tableName + " WHERE uuid = ? AND key_id = ?";
+		this.DELETE_KEY_SQL = "DELETE FROM " + tableName + " WHERE uuid = ? AND key_id = ?";
+		this.DELETE_EXPIRED_BY_UUID_SQL = "DELETE FROM " + tableName + " WHERE uuid = ? AND (expire_time = 0 OR (expire_time > 0 AND expire_time <= ?))";
         this.SELECT_SQL = "SELECT stat, key_id, value, percent, expire_time FROM " + tableName + " WHERE uuid = ?";
         this.ALTER_TABLE_SQL = "ALTER TABLE " + tableName + " ADD COLUMN expire_time BIGINT DEFAULT 0";
         
@@ -131,9 +133,16 @@ public class JdbcStorageManager implements StorageManager {
     @Override
     public Map<String, Map<String, CacheManager.Entry>> loadAttributes(UUID uuid) {
         Map<String, Map<String, CacheManager.Entry>> map = new HashMap<>();
-        try (Connection conn = getConnection();
-             PreparedStatement ps = conn.prepareStatement(SELECT_SQL)) {
-            ps.setString(1, uuid.toString());
+		try (Connection conn = getConnection()) {
+			// 先清理该玩家已过期的记录，避免加载到内存后再处理
+			try (PreparedStatement del = conn.prepareStatement(DELETE_EXPIRED_BY_UUID_SQL)) {
+				del.setString(1, uuid.toString());
+				del.setLong(2, System.currentTimeMillis());
+				del.executeUpdate();
+			}
+
+			try (PreparedStatement ps = conn.prepareStatement(SELECT_SQL)) {
+				ps.setString(1, uuid.toString());
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     String stat = rs.getString(1);
@@ -143,23 +152,26 @@ public class JdbcStorageManager implements StorageManager {
                     long expireTime = rs.getLong(5);
                     
                     // 将绝对过期时间转换为相对时间（剩余ticks）
-                    long expireTicks = 0;
-                    if (expireTime > 0) {
+						Long expireTicks = null;
+						if (expireTime < 0) {
+							// 永久
+							expireTicks = -1L;
+						} else if (expireTime > 0) {
                         long currentTime = System.currentTimeMillis();
                         if (expireTime > currentTime) {
                             expireTicks = (expireTime - currentTime) / 50; // 转换为ticks（1tick=50ms）
                         }
-                        // 如果已过期，expireTicks保持为0，会在下次清理时被移除
                     }
                     
                     CacheManager.Entry entry = new CacheManager.Entry(value, percent);
-                    entry.setExpireTicks(expireTicks);
+						entry.setExpireTicks(expireTicks == null ? 0L : expireTicks);
                     // 从数据库加载的属性都不是memoryOnly的
                     entry.setMemoryOnly(false);
                     map.computeIfAbsent(stat, k -> new ConcurrentHashMap<>())
                        .put(keyId, entry);
-                }
-            }
+				}
+				}
+			}
         } catch (SQLException e) {
             debug.error("读取玩家属性失败: " + e.getMessage());
         }
@@ -297,11 +309,19 @@ public class JdbcStorageManager implements StorageManager {
         ps.setInt(5, entry.isPercent() ? 1 : 0);
         
         // 将相对时间转换为绝对过期时间
-        long expireTime = 0;
-        if (entry.getExpireTicks() > 0) {
-            expireTime = System.currentTimeMillis() + (entry.getExpireTicks() * 50); // 转换为毫秒
-        }
-        ps.setLong(6, expireTime);
+		long expireTicks = entry.getExpireTicks();
+		long expireTime;
+		if (expireTicks < 0) {
+			// 永久
+			expireTime = -1L;
+		} else if (expireTicks == 0) {
+			// 约定：0 表示需移除/不生效
+			expireTime = 0L;
+		} else {
+			// 正常转绝对时间
+			expireTime = System.currentTimeMillis() + (expireTicks * 50L);
+		}
+		ps.setLong(6, expireTime);
         
         ps.addBatch();
     }

@@ -16,6 +16,7 @@ public class ExpireTask extends BukkitRunnable {
 
     @Override
     public void run() {
+        // 异步线程中仅做内存与数据库删除，不触发 Bukkit API；AttributeApplier.remove 仅操作 MythicLib 数据结构，保持线程安全
         CacheManager.cleanupExpired(storage);
     }
 }

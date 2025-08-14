@@ -65,6 +65,12 @@ public class RemoveCommand implements SubCommand {
         return true;
     }
 
+    @Override
+    public java.util.List<String> optionSuggestions(int argIndex, String partial, CommandSender sender, String[] args) {
+        // 当前 remove 无 -- 参数，返回空
+        return java.util.Collections.emptyList();
+    }
+
     private boolean removeAttributesForPlayer(Player target, String stat, String keyId) {
         UUID uuid = target.getUniqueId();
         StorageManager storage = AttributeBinderContext.getStorage();
