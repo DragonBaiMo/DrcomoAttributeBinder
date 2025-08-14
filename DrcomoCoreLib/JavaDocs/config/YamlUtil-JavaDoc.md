@@ -40,13 +40,14 @@
 
 **3. 公共API方法 (Public API Methods)**
 
-  * #### `ensureFolderAndCopyDefaults(String resourceFolder, String relativePath)`
+  * #### `ensureFolderAndCopyDefaults(String resourceFolder, String relativePath, String... excludedNames)`
 
       * **返回类型:** `void`
-      * **功能描述:** 若插件数据文件夹内某目标目录不存在，则创建该目录，并从 JAR 内指定资源文件夹复制其全部文件及层级结构到该目录，实现一次性批量初始化。（通常用于**首次使用该插件**）
+      * **功能描述:** 若插件数据文件夹内某目标目录不存在，则创建该目录，并从 JAR 内指定资源文件夹复制其全部文件及层级结构到该目录，实现一次性批量初始化。此方法会动态判断目标文件夹是否存在：若不存在，则拷贝整个文件夹内容；若已存在，则保持不变。默认会跳过 `plugin.yml` 与所有 `.sql` 文件，可通过 `excludedNames` 追加排除项。通常用于插件首次加载时的资源初始化。
       * **参数说明:**
           * `resourceFolder` (`String`): JAR 内资源文件夹路径，例如 `"templates"` 或 `"assets/lang"`。
           * `relativePath` (`String`): 数据文件夹内目标目录，相对插件根目录，空字符串表示根目录。
+          * `excludedNames` (`String...`): 额外需要排除的文件名。
 
   * #### `ensureDirectory(String relativePath)`
 
@@ -93,12 +94,18 @@
       * **参数说明:**
           * `fileName` (`String`): 文件名（不含.yml）。
 
-  * #### `saveConfig(String fileName)`
+  * #### `saveConfig(String fileName, boolean force)`
 
       * **返回类型:** `void`
-      * **功能描述:** 将内存中缓存的指定配置对象，保存回磁盘上的 `.yml` 文件。
+      * **功能描述:** 将内存中缓存的指定配置对象，保存回磁盘上的 `.yml` 文件。如果 `force` 为 `false`（或调用无参版本 `saveConfig(fileName)`），则仅在配置被修改过（即“脏”状态）时才会保存。
       * **参数说明:**
           * `fileName` (`String`): 文件名（不含.yml）。
+          * `force` (`boolean`): 是否强制保存，无视“脏”状态。
+
+  * #### `saveAllDirtyConfigs()`
+
+      * **返回类型:** `void`
+      * **功能描述:** 将所有在内存中被修改过（“脏”）的配置文件一次性全部保存到磁盘。**强烈建议在插件的 `onDisable` 方法中调用此方法**，以确保所有更改都得到持久化。
 
   * #### `getConfig(String fileName)`
 
@@ -110,7 +117,7 @@
   * #### `getString(String fileName, String path, String def)`
 
       * **返回类型:** `String`
-      * **功能描述:** 从指定配置文件中读取一个字符串。如果路径不存在，会将 `def`（默认值）写入该路径，保存文件，然后返回 `def`。
+      * **功能描述:** 从指定配置文件中读取一个字符串。如果路径不存在，会将 `def`（默认值）写入**内存中的配置**，并将该配置标记为“脏”状态，然后返回 `def`。注意：此操作**不会**立即保存文件。
       * **参数说明:**
           * `fileName` (`String`): 文件名。
           * `path` (`String`): YAML 中的路径，例如 `"database.host"`。
@@ -118,12 +125,12 @@
 
   * #### `getInt`, `getBoolean`, `getDouble`, `getLong`, `getStringList`
 
-      * **功能描述:** 与 `getString` 类似，分别用于读取整数、布尔值、双精度浮点数、长整数和字符串列表，都支持写入默认值。
+      * **功能描述:** 与 `getString` 类似，分别用于读取整数、布尔值、双精度浮点数、长整数和字符串列表。当路径不存在时，它们都会将默认值写入内存并标记配置为“脏”，但不会立即保存文件。
 
   * #### `setValue(String fileName, String path, Object value)`
 
       * **返回类型:** `void`
-      * **功能描述:** 在指定的配置中设置一个路径的值，并立即保存到磁盘。
+      * **功能描述:** 在指定的配置中设置一个路径的值。此操作仅修改内存中的配置并将其标记为“脏”，**不会**立即保存到磁盘。
       * **参数说明:**
           * `fileName` (`String`): 文件名。
           * `path` (`String`): 路径。
@@ -153,25 +160,29 @@
           * `fileName` (`String`): 文件名。
           * `path` (`String`): 路径。
 
+  * #### `setDefaults(String configKey, Map<String, Object> defaults)`
+
+      * **返回类型:** `void`
+      * **功能描述:** 为指定配置文件批量写入默认值，仅在路径不存在时才会设置对应的默认值。
+      * **参数说明:**
+          * `configKey` (`String`): 配置文件名（不含 `.yml`）。
+          * `defaults` (`Map<String, Object>`): 键为配置路径、值为默认值的映射。
+
+  * #### `validateConfig(String configKey, ConfigSchema schema)`
+
+      * **返回类型:** `ValidationResult`
+      * **功能描述:** 使用 `ConfigSchema` 声明的规则对指定配置文件进行结构校验，返回包含错误列表的 `ValidationResult`。
+      * **参数说明:**
+          * `configKey` (`String`): 配置文件名（不含 `.yml`）。
+          * `schema` (`ConfigSchema`): 配置结构声明接口，实现后在其中配置校验规则。
+
 * #### `watchConfig(String configName, Consumer<YamlConfiguration> onChange)`
 
     * **返回类型:** `YamlUtil.ConfigWatchHandle`
-    * **功能描述:** 使用 `WatchService` 监听配置文件变更。当文件内容被修改时自动
-      重载该文件并执行回调函数。等同于调用扩展方法并仅监听 `ENTRY_MODIFY` 事件。
+    * **功能描述:** 使用高效的共享后台线程监听配置文件变更。当文件内容被修改时，会自动在服务器主线程中重载该文件并安全地执行回调函数。
     * **参数说明:**
         * `configName` (`String`): 文件名（不含 `.yml`）。
         * `onChange` (`Consumer<YamlConfiguration>`): 变更后的回调，参数为最新配置。
-
-* #### `watchConfig(String configName, Consumer<YamlConfiguration> onChange, ExecutorService executor, WatchEvent.Kind<?>... kinds)`
-
-    * **返回类型:** `YamlUtil.ConfigWatchHandle`
-    * **功能描述:** 自定义监听事件类型并可指定执行监听任务的线程池。当 `executor`
-      为 `null` 时会创建守护线程。`kinds` 为空时默认仅监听 `ENTRY_MODIFY`。
-    * **参数说明:**
-        * `configName` (`String`): 文件名（不含 `.yml`）。
-        * `onChange` (`Consumer<YamlConfiguration>`): 变更后的回调，参数为最新配置。
-        * `executor` (`ExecutorService`): 执行监听任务的线程池，传入 `null` 时自建线程。
-        * `kinds` (`WatchEvent.Kind<?>...`): 监听的事件类型，例如 `ENTRY_CREATE`、`ENTRY_DELETE`。
 
   * **代码示例：**
 
@@ -184,11 +195,38 @@
     handle.close();
     ```
 
+  * #### `enableFileWatcher(String configKey, FileChangeListener listener)`
+
+      * **返回类型:** `void`
+      * **功能描述:** 启用指定配置文件的变更监听，内部复用 `watchConfig` 并在文件修改时回调 `FileChangeListener`。
+      * **参数说明:**
+          * `configKey` (`String`): 配置文件名（不含 `.yml`）。
+          * `listener` (`FileChangeListener`): 变更回调，提供变更类型与最新配置。
+
+  * #### `disableFileWatcher(String configKey)`
+
+      * **返回类型:** `void`
+      * **功能描述:** 关闭指定配置文件的监听，内部调用 `stopWatching` 清理资源。
+      * **参数说明:**
+          * `configKey` (`String`): 配置文件名（不含 `.yml`）。
+
   * #### `stopAllWatches()`
 
       * **返回类型:** `void`
-      * **功能描述:** 关闭并清理所有由 `watchConfig` 创建的监听器。通常在插件停用
-        时调用，以避免后台线程泄露。
+      * **功能描述:** 关闭并清理所有由 `watchConfig` 创建的监听器，并同时清空内
+        部 JAR 条目缓存。**已由 `close()` 方法涵盖，建议在插件卸载时直接调用 `close()`。**
+
+  * #### `close()`
+
+      * **返回类型:** `void`
+      * **功能描述:** 关闭 `WatchService` 并中断、等待监听线程退出，同时清理内
+        部缓存。**必须在插件 `onDisable()` 调用**，否则可能导致线程与资源泄漏。
+
+  * #### `clearJarCache()`
+
+      * **返回类型:** `void`
+      * **功能描述:** 主动清空 JAR 内目录条目缓存，释放内存。若未使用监听功
+        能，也可在插件卸载时单独调用。
 
   * #### `getValue(String path, Class<T> type, T defaultValue)`
 
