@@ -1,6 +1,6 @@
 package com.baimo.attributebinder.service;
 
-import com.baimo.attributebinder.AttributeBinder;
+import com.baimo.attributebinder.DrcomoAttributeBinder;
 import io.lumine.mythic.lib.api.player.EquipmentSlot;
 import io.lumine.mythic.lib.api.player.MMOPlayerData;
 import io.lumine.mythic.lib.api.stat.modifier.StatModifier;
@@ -126,7 +126,7 @@ public class AttributeApplier {
         if (Bukkit.isPrimaryThread()) {
             task.run();
         } else {
-            Bukkit.getScheduler().runTask(AttributeBinder.getInstance(), task);
+            Bukkit.getScheduler().runTask(DrcomoAttributeBinder.getInstance(), task);
         }
     }
 }

@@ -76,7 +76,7 @@ commands:
   checkgear:
     description: "检查装备属性"
     usage: "/checkgear"
-    permission: "attributebinder.checkgear"
+    permission: "drcomoattributebinder.checkgear"
 ```
 
 命令执行时发送：

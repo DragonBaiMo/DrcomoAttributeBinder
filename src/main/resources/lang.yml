@@ -6,10 +6,10 @@ cmd:
     player_not_found: "{prefix} &#FF5555✖ &#FFFFFF玩家 &#55FFFF{player} &#FFFFFF不在线"
     no_online_players: "{prefix} &#FF5555✖ &#FFFFFF当前没有在线玩家"
     invalid_number: "{prefix} &#FF5555✖ &#FFFFFF数值格式非法，请输入有效数字"
-    unknown_subcommand: "{prefix} &#FF5555✖ &#FFFFFF未知子命令，输入 &#FFFF55/attributebinder help &#FFFFFF查看帮助"
+    unknown_subcommand: "{prefix} &#FF5555✖ &#FFFFFF未知子命令，输入 &#FFFF55/drcomoattributebinder help &#FFFFFF查看帮助"
 
   usage:
-    main: "{prefix} &#FFFF55用法: &#FFFFFF/attributebinder &#FFFFFF<give|replace|remove|list|reload|flush|help>"
+    main: "{prefix} &#FFFF55用法: &#FFFFFF/drcomoattributebinder &#FFFFFF<give|replace|remove|list|reload|flush|help>"
     give: |
       {prefix} &#FFAA00用法 — give
       &#FFFFFF/attributebinder give &#FFFFFF<玩家> <属性> <数值> &#00AAAA[--k:<KeyID>] [--mem:<true|false>] [--exp:<ticks>] [--md:(replace|give)] [--mx:<上限>]
@@ -47,11 +47,11 @@ cmd:
     list: |
       {prefix} &#FFAA00用法 — list
       &#FFFFFF/attributebinder list &#FFFFFF<玩家> &#00AAAA[all|keys <属性>|keyattrs <KeyID>|inspect <属性>|source <属性> <来源>|stats <属性>]
-    list_keys: "{prefix} &#FFAA00list — keys &#00AAAA用法: &#FFFFFF/attributebinder list <玩家> keys <属性>"
-    list_keyattrs: "{prefix} &#FFAA00list — keyattrs &#00AAAA用法: &#FFFFFF/attributebinder list <玩家> keyattrs <KeyID>"
-    list_inspect: "{prefix} &#FFAA00list — inspect &#00AAAA用法: &#FFFFFF/attributebinder list <玩家> inspect <属性>"
-    list_source: "{prefix} &#FFAA00list — source &#00AAAA用法: &#FFFFFF/attributebinder list <玩家> source <属性> <来源>"
-    list_stats: "{prefix} &#FFAA00list — stats &#00AAAA用法: &#FFFFFF/attributebinder list <玩家> stats <属性>"
+    list_keys: "{prefix} &#FFAA00list — keys &#00AAAA用法: &#FFFFFF/drcomoattributebinder list <玩家> keys <属性>"
+    list_keyattrs: "{prefix} &#FFAA00list — keyattrs &#00AAAA用法: &#FFFFFF/drcomoattributebinder list <玩家> keyattrs <KeyID>"
+    list_inspect: "{prefix} &#FFAA00list — inspect &#00AAAA用法: &#FFFFFF/drcomoattributebinder list <玩家> inspect <属性>"
+    list_source: "{prefix} &#FFAA00list — source &#00AAAA用法: &#FFFFFF/drcomoattributebinder list <玩家> source <属性> <来源>"
+    list_stats: "{prefix} &#FFAA00list — stats &#00AAAA用法: &#FFFFFF/drcomoattributebinder list <玩家> stats <属性>"
 
   reload:
     success: "{prefix} &#55FF55✔ &#FFFFFF已重载配置与语言文件"
@@ -86,9 +86,9 @@ cmd:
     header: "&e==== &6AttributeBinder 帮助 &e===="
     list_modes: "&#FFFFFFlist 模式: &#FFFFFFall, &#FFFFFFkeys &#FFFFFF<属性>, &#FFFFFFkeyattrs &#FFFFFF<KeyID>, &#FFFFFFinspect &#FFFFFF<属性>, &#FFFFFFsource &#FFFFFF<属性> <来源>, &#FFFFFFstats &#FFFFFF<属性>"
     options: "&#FFFFFF选项: &#FFFFFF--k:&#FFFFFF<KeyID> &#00AAAA| &#FFFFFF--mem:&#FFFFFF<true|false> &#00AAAA| &#FFFFFF--exp:&#FFFFFF<ticks> &#00AAAA| &#FFFFFF--md:&#FFFFFF(replace|give) &#00AAAA| &#FFFFFF--mx:&#FFFFFF<上限>"
-    reload: "{prefix} &#FFFFFF/attributebinder &#FFFFFFreload &#00AAAA- &#FFFFFF重载配置与语言"
-    flush: "{prefix} &#FFFFFF/attributebinder &#FFFFFFflush &#00AAAA- &#FFFFFF写入数据库并清理缓存"
-    help: "{prefix} &#FFFFFF/attributebinder &#FFFFFFhelp &#00AAAA- &#FFFFFF显示帮助"
+    reload: "{prefix} &#FFFFFF/drcomoattributebinder &#FFFFFFreload &#00AAAA- &#FFFFFF重载配置与语言"
+    flush: "{prefix} &#FFFFFF/drcomoattributebinder &#FFFFFFflush &#00AAAA- &#FFFFFF写入数据库并清理缓存"
+    help: "{prefix} &#FFFFFF/drcomoattributebinder &#FFFFFFhelp &#00AAAA- &#FFFFFF显示帮助"
     footer: "&#00AAAA------------------------------"
 
   deprecated:

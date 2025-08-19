@@ -4,7 +4,7 @@ package com.baimo.attributebinder.listener;
  * PlayerListener — 监听玩家上下线事件并处理属性加成与缓存保存
  */
 
-import com.baimo.attributebinder.AttributeBinder;
+import com.baimo.attributebinder.DrcomoAttributeBinder;
 import com.baimo.attributebinder.cache.CacheManager;
 import com.baimo.attributebinder.service.AttributeApplier;
 import com.baimo.attributebinder.storage.AttributeBinderContext;
@@ -32,10 +32,10 @@ public class PlayerListener implements Listener {
         AttributeApplier.removeAll(uuid);
         
         // 延迟一秒异步加载数据，完成后在主线程应用
-        AttributeBinder.getAsyncTaskManager().scheduleAsync(() -> {
+        DrcomoAttributeBinder.getAsyncTaskManager().scheduleAsync(() -> {
             StorageManager storage = AttributeBinderContext.getStorage();
             Map<String, Map<String, CacheManager.Entry>> attrs = storage.loadAttributes(uuid);
-				Bukkit.getScheduler().runTask(AttributeBinder.getInstance(), () ->
+				Bukkit.getScheduler().runTask(DrcomoAttributeBinder.getInstance(), () ->
 					attrs.forEach((stat, keyMap) -> keyMap.forEach((keyId, entry) -> {
 						CacheManager.setAttribute(uuid, stat, keyId, entry.getValue(), entry.isPercent(), false, entry.getExpireTicks());
 						AttributeApplier.apply(uuid, stat, keyId, entry.getValue(), entry.isPercent());
@@ -61,7 +61,7 @@ public class PlayerListener implements Listener {
         });
 
         // 异步保存，减少主线程阻塞
-        AttributeBinder.getAsyncTaskManager().submitAsync(() -> storage.saveAttributes(uuid, filtered));
+        DrcomoAttributeBinder.getAsyncTaskManager().submitAsync(() -> storage.saveAttributes(uuid, filtered));
         CacheManager.clear(uuid);
         AttributeApplier.removeAll(uuid);
     }

@@ -46,8 +46,8 @@ public class ConfigManager {
     }
 
     public String getSqliteFile() {
-        // SQLite 数据库文件名，默认为示例配置中的 attributebinder.db
-        return yaml.getString("config", "storage.sqlite-file", "attributebinder.db");
+        // SQLite 数据库文件名，默认为示例配置中的 drcomoattributebinder.db
+        return yaml.getString("config", "storage.sqlite-file", "drcomoattributebinder.db");
     }
 
     /** MySQL 主机 */
@@ -60,7 +60,7 @@ public class ConfigManager {
     }
     /** MySQL 数据库名 */
     public String getMySqlDatabase() {
-        return yaml.getString("config", "storage.mysql.database", "attributebinder");
+        return yaml.getString("config", "storage.mysql.database", "drcomoattributebinder");
     }
     /** MySQL 用户名 */
     public String getMySqlUser() {
@@ -78,6 +78,6 @@ public class ConfigManager {
     
     /** 获取自定义表名，默认为插件名 */
     public String getTableName() {
-        return yaml.getString("config", "storage.table-name", "attributebinder");
+        return yaml.getString("config", "storage.table-name", "drcomoattributebinder");
     }
 }

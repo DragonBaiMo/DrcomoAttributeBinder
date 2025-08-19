@@ -5,16 +5,16 @@ storage:
   type: sqlite
   
   # 自定义表名，默认为插件名
-  table-name: attributebinder
+  table-name: drcomoattributebinder
 
   # SQLite 专属设置
-  sqlite-file: attributebinder.db
+  sqlite-file: drcomoattributebinder.db
 
   # MySQL 专属设置
   mysql:
     host: localhost
     port: 3306
-    database: attributebinder
+    database: drcomoattributebinder
     user: root
     password: password
 

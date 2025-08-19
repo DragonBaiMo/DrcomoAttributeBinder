@@ -1,6 +1,6 @@
 package com.baimo.attributebinder.command;
 
-import com.baimo.attributebinder.AttributeBinder;
+import com.baimo.attributebinder.DrcomoAttributeBinder;
 import com.baimo.attributebinder.config.ConfigManager;
 import com.baimo.attributebinder.config.LangManager;
 import com.baimo.attributebinder.task.FlushTask;
@@ -23,7 +23,7 @@ import java.util.Arrays;
 import java.util.stream.Collectors;
 
 /**
- * 主命令处理类，负责 /attributebinder 子命令的分发与执行
+ * 主命令处理类，负责 /drcomoattributebinder 子命令的分发与执行
  */
 public class AttributeBinderCommand implements CommandExecutor, TabCompleter {
 
@@ -48,32 +48,32 @@ public class AttributeBinderCommand implements CommandExecutor, TabCompleter {
         String sub = args[0].toLowerCase();
         switch (sub) {
             case "give":
-                if (!checkPermission(sender, "attributebinder.give", "cmd.error.no_permission")) return true;
+                if (!checkPermission(sender, "drcomoattributebinder.give", "cmd.error.no_permission")) return true;
                 giveCmd.execute(sender, args);
                 break;
             case "remove":
-                if (!checkPermission(sender, "attributebinder.remove", "cmd.error.no_permission")) return true;
+                if (!checkPermission(sender, "drcomoattributebinder.remove", "cmd.error.no_permission")) return true;
                 removeCmd.execute(sender, args);
                 break;
             case "list":
-                if (!checkPermission(sender, "attributebinder.list", "cmd.error.no_permission")) return true;
+                if (!checkPermission(sender, "drcomoattributebinder.list", "cmd.error.no_permission")) return true;
                 listCmd.execute(sender, args);
                 break;
             case "replace":
-                if (!checkPermission(sender, "attributebinder.replace", "cmd.error.no_permission")) return true;
+                if (!checkPermission(sender, "drcomoattributebinder.replace", "cmd.error.no_permission")) return true;
                 replaceCmd.execute(sender, args);
                 break;
             case "reload":
-                if (!checkPermission(sender, "attributebinder.admin", "cmd.error.no_permission")) return true;
+                if (!checkPermission(sender, "drcomoattributebinder.admin", "cmd.error.no_permission")) return true;
                 ConfigManager.get().reload();
                 LangManager.get().reload();
-                AttributeBinder.getInstance().resetFlushTask(ConfigManager.get().getSyncIntervalMinutes());
-                AttributeBinder.getInstance().updateDebugLevel();
+                DrcomoAttributeBinder.getInstance().resetFlushTask(ConfigManager.get().getSyncIntervalMinutes());
+                DrcomoAttributeBinder.getInstance().updateDebugLevel();
                 CommandUtils.sendSuccess(lang, sender, "cmd.reload.success");
                 break;
             case "flush":
-                if (!checkPermission(sender, "attributebinder.admin", "cmd.error.no_permission")) return true;
-                new FlushTask().runTaskAsynchronously(AttributeBinder.getInstance());
+                if (!checkPermission(sender, "drcomoattributebinder.admin", "cmd.error.no_permission")) return true;
+                new FlushTask().runTaskAsynchronously(DrcomoAttributeBinder.getInstance());
                 CommandUtils.sendSuccess(lang, sender, "cmd.flush.success");
                 break;
             case "help":

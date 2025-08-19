@@ -12,7 +12,7 @@ import java.util.*;
 
 /**
  * PlaceholderHandler —— 占位符处理器
- * 负责注册和处理所有 AttributeBinder 相关的占位符
+ * 负责注册和处理所有 DrcomoAttributeBinder 相关的占位符
  */
 public class PlaceholderHandler {
     

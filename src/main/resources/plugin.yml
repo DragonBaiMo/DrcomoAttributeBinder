@@ -1,34 +1,34 @@
-name: AttributeBinder
+name: DrcomoAttributeBinder
 version: '1.0'
-main: com.baimo.attributebinder.AttributeBinder
+main: com.baimo.attributebinder.DrcomoAttributeBinder
 api-version: '1.20'
 depend: [DrcomoCoreLib, PlaceholderAPI, MythicLib, MMOItems]
 commands:
-  attributebinder:
+  drcomoattributebinder:
     description: 属性加成管理
-    usage: /attributebinder <give|replace|remove|list|reload|flush>
-    aliases: [abb, attributeBinder]
+    usage: /drcomoattributebinder <give|replace|remove|list|reload|flush>
+    aliases: [abb, attributeBinder, drcomoattributebinder]
 permissions:
-  attributebinder.*:
-    description: 所有 AttributeBinder 权限
+  drcomoattributebinder.*:
+    description: 所有 DrcomoAttributeBinder 权限
     children:
-      attributebinder.admin: true
-      attributebinder.give: true
-      attributebinder.remove: true
-      attributebinder.list: true
-      attributebinder.replace: true
-  attributebinder.admin:
+      drcomoattributebinder.admin: true
+      drcomoattributebinder.give: true
+      drcomoattributebinder.remove: true
+      drcomoattributebinder.list: true
+      drcomoattributebinder.replace: true
+  drcomoattributebinder.admin:
     description: 重载与写库权限
     default: op
-  attributebinder.give:
+  drcomoattributebinder.give:
     description: 使用 /ab give
     default: op
-  attributebinder.remove:
+  drcomoattributebinder.remove:
     description: 使用 /ab remove
     default: op
-  attributebinder.list:
+  drcomoattributebinder.list:
     description: 使用 /ab list
     default: true
-  attributebinder.replace:
+  drcomoattributebinder.replace:
     description: 使用 /ab replace
     default: op

@@ -24,11 +24,11 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * AttributeBinder 插件主类。
+ * DrcomoAttributeBinder 插件主类。
  */
-public final class AttributeBinder extends JavaPlugin {
+public final class DrcomoAttributeBinder extends JavaPlugin {
 
-    private static AttributeBinder INSTANCE;
+    private static DrcomoAttributeBinder INSTANCE;
 
     // Debug 工具
     private DebugUtil debug;
@@ -88,7 +88,7 @@ public final class AttributeBinder extends JavaPlugin {
     }
 
     /** 获取插件实例 */
-    public static AttributeBinder getInstance() {
+    public static DrcomoAttributeBinder getInstance() {
         return INSTANCE;
     }
 
@@ -152,8 +152,8 @@ public final class AttributeBinder extends JavaPlugin {
     /** 注册命令执行器与补全器 */
     private void initCommands() {
         AttributeBinderCommand mainCommand = new AttributeBinderCommand();
-        getCommand("attributebinder").setExecutor(mainCommand);
-        getCommand("attributebinder").setTabCompleter(mainCommand);
+        getCommand("drcomoattributebinder").setExecutor(mainCommand);
+        getCommand("drcomoattributebinder").setTabCompleter(mainCommand);
     }
 
     /** 注册事件监听器 */
