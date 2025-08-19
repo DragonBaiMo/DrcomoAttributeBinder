@@ -23,14 +23,14 @@ public class ReplaceCommand implements SubCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (args.length < 4 || args.length > 7) {
-            lang.send(sender, "command-replace-usage");
+            CommandUtils.sendErrorWithOriginal(lang, sender, "cmd.usage.replace");
             return true;
         }
         Player target = CommandUtils.getPlayer(args[1], sender, lang);
         if (target == null) return true;
 
         String stat = args[2].toUpperCase();
-        ValuePair vp = CommandUtils.parseValue(args[3], sender, "command-give-invalid-number", lang);
+        ValuePair vp = CommandUtils.parseValue(args[3], sender, "cmd.error.invalid_number", lang);
         if (vp == null) return true;
 
         OptParams params = CommandUtils.parseReplaceParams(args, sender, lang);
@@ -38,8 +38,13 @@ public class ReplaceCommand implements SubCommand {
 
         UUID uuid = target.getUniqueId();
         double oldVal = CacheManager.getAttribute(uuid, stat, params.keyId);
+        // 替换目标值：若指定 --max 则按数值裁剪；百分比仅按数值位裁剪，实际仍按百分比生效
+        double newVal = vp.value;
+        if (params.maxValue >= 0) {
+            newVal = Math.min(newVal, params.maxValue);
+        }
 
-		if (Double.compare(oldVal, vp.value) == 0) {
+		if (Double.compare(oldVal, newVal) == 0) {
 			long oldTicks = CacheManager.getExpireTicks(uuid, stat, params.keyId);
 			// 过期时间新语义：-1=永久，0=移除，>0 按模式处理；未提供时解析层已默认 -1
 			long newExpire;
@@ -59,14 +64,14 @@ public class ReplaceCommand implements SubCommand {
             boolean oldMemory = entry != null && entry.isMemoryOnly();
             CacheManager.setAttribute(uuid, stat, params.keyId, oldVal, oldPercent, oldMemory, newExpire);
             String valStr = CommandUtils.formatValue(oldVal, oldPercent);
-            lang.send(sender, "command-replace-success", Map.of(
+			CommandUtils.sendSuccess(lang, sender, "cmd.replace.success", Map.of(
                     "player", target.getName(),
                     "attribute", stat,
                     "value", valStr,
                     "key", params.keyId,
                     "memoryOnly", String.valueOf(params.memoryOnly),
-                    "expireTicks", String.valueOf(newExpire)
-            ));
+					"expireTicks", String.valueOf(newExpire)
+			));
 		} else {
 			long oldExpire = CacheManager.getExpireTicks(uuid, stat, params.keyId);
 			// 过期时间新语义：-1=永久，0=移除，>0 按模式处理；未提供时解析层已默认 -1
@@ -80,17 +85,17 @@ public class ReplaceCommand implements SubCommand {
 			} else {
 				newExpire = oldExpire;
 			}
-            CacheManager.setAttribute(uuid, stat, params.keyId, vp.value, vp.percent, params.memoryOnly, newExpire);
-            AttributeApplier.apply(uuid, stat, params.keyId, vp.value, vp.percent);
-            String valStr = CommandUtils.formatValue(vp.value, vp.percent);
-            lang.send(sender, "command-replace-success", Map.of(
+            CacheManager.setAttribute(uuid, stat, params.keyId, newVal, vp.percent, params.memoryOnly, newExpire);
+            AttributeApplier.apply(uuid, stat, params.keyId, newVal, vp.percent);
+            String valStr = CommandUtils.formatValue(newVal, vp.percent);
+			CommandUtils.sendSuccess(lang, sender, "cmd.replace.success", Map.of(
                     "player", target.getName(),
                     "attribute", stat,
                     "value", valStr,
                     "key", params.keyId,
                     "memoryOnly", String.valueOf(params.memoryOnly),
-                    "expireTicks", String.valueOf(newExpire)
-            ));
+					"expireTicks", String.valueOf(newExpire)
+			));
         }
         return true;
     }
@@ -103,6 +108,7 @@ public class ReplaceCommand implements SubCommand {
         options.add("--mem=");
         options.add("--exp=");
         options.add("--md=");
+        options.add("--mx=");
 
         if (partial == null || partial.isEmpty()) return options;
         java.util.List<String> result = new java.util.ArrayList<>();

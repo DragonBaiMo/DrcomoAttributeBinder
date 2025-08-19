@@ -20,7 +20,7 @@ public class ListCommand implements SubCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (args.length < 2 || args.length > 5) {
-            lang.send(sender, "command-list-usage");
+            lang.send(sender, "cmd.usage.list");
             return true;
         }
         Player target = CommandUtils.getPlayer(args[1], sender, lang);
@@ -31,35 +31,35 @@ public class ListCommand implements SubCommand {
             case "all" -> handleListAll(sender, target);
             case "keys" -> {
                 if (args.length < 4) {
-                    lang.send(sender, "command-list-keys-usage");
+                    lang.send(sender, "cmd.usage.list_keys");
                     return true;
                 }
                 handleListKeys(sender, target, args[3]);
             }
             case "keyattrs" -> {
                 if (args.length < 4) {
-                    lang.send(sender, "command-list-keyattrs-usage");
+                    lang.send(sender, "cmd.usage.list_keyattrs");
                     return true;
                 }
                 handleListKeyAttrs(sender, target, args[3]);
             }
             case "inspect" -> {
                 if (args.length < 4) {
-                    lang.send(sender, "command-list-inspect-usage");
+                    lang.send(sender, "cmd.usage.list_inspect");
                     return true;
                 }
                 handleListInspect(sender, target, args[3]);
             }
             case "source" -> {
                 if (args.length < 5) {
-                    lang.send(sender, "command-list-source-usage");
+                    lang.send(sender, "cmd.usage.list_source");
                     return true;
                 }
                 handleListSource(sender, target, args[3], args[4]);
             }
             case "stats" -> {
                 if (args.length < 4) {
-                    lang.send(sender, "command-list-stats-usage");
+                    lang.send(sender, "cmd.usage.list_stats");
                     return true;
                 }
                 handleListStats(sender, target, args[3]);
@@ -79,22 +79,24 @@ public class ListCommand implements SubCommand {
         UUID uuid = target.getUniqueId();
         Map<String, Map<String, Entry>> byKey = CommandUtils.groupSnapshotByKey(uuid);
         if (byKey.isEmpty()) {
-            lang.send(sender, "command-list-empty", Map.of("player", target.getName()));
+            CommandUtils.sendSuccess(lang, sender, "cmd.list.empty", Map.of("player", target.getName()));
             return;
         }
-        sender.sendMessage(lang.get("command-list-header", Map.of("player", target.getName())));
+        CommandUtils.sendSuccess(lang, sender, "cmd.list.header", Map.of("player", target.getName()));
         byKey.forEach((key, attrs) -> {
-            sender.sendMessage(lang.get("command-list-key-header", Map.of("key", key)));
-            attrs.forEach((stat, entry) -> sender.sendMessage(lang.get("command-list-item", Map.of(
+            CommandUtils.sendSuccess(lang, sender, "cmd.list.key_header", Map.of("key", key));
+            attrs.forEach((stat, entry) -> CommandUtils.sendSuccess(lang, sender, "cmd.list.item", Map.of(
                     "attribute", stat,
                     "value", CommandUtils.formatValue(entry.getValue(), entry.isPercent())
-            ))));
+            )));
         });
     }
 
     private void handleListAll(CommandSender sender, Player target) {
         String result = com.baimo.attributebinder.placeholder.PlaceholderFormatter.formatAllAttributes(target);
-        sender.sendMessage(ColorUtil.translateColors(result));
+        if (sender instanceof Player) {
+            sender.sendMessage(ColorUtil.translateColors(result));
+        }
     }
 
     private void handleListKeys(CommandSender sender, Player target, String stat) {
@@ -103,42 +105,50 @@ public class ListCommand implements SubCommand {
         Map<String, Map<String, Entry>> statMap = CacheManager.snapshot(uuid);
         Map<String, Entry> keyMap = statMap.get(statUpper);
         if (keyMap == null || keyMap.isEmpty()) {
-            lang.send(sender, "command-list-keys-empty", Map.of(
+            CommandUtils.sendSuccess(lang, sender, "cmd.list.keys_empty", Map.of(
                     "player", target.getName(),
                     "stat", statUpper
             ));
             return;
         }
-        lang.send(sender, "command-list-keys-header", Map.of(
+        CommandUtils.sendSuccess(lang, sender, "cmd.list.keys_header", Map.of(
                 "player", target.getName(),
                 "stat", statUpper
         ));
-        lang.send(sender, "command-list-keys-content", Map.of(
+        CommandUtils.sendSuccess(lang, sender, "cmd.list.keys_content", Map.of(
                 "keys", String.join(", ", keyMap.keySet())
         ));
     }
 
     private void handleListKeyAttrs(CommandSender sender, Player target, String keyId) {
         String result = com.baimo.attributebinder.placeholder.PlaceholderFormatter.formatKeyAttributes(target, keyId);
-        lang.send(sender, "command-list-keyattrs-header", Map.of(
+        CommandUtils.sendSuccess(lang, sender, "cmd.list.keyattrs_header", Map.of(
                 "player", target.getName(),
                 "key", keyId
         ));
-        sender.sendMessage(ColorUtil.translateColors(result));
+        if (sender instanceof Player) {
+            sender.sendMessage(ColorUtil.translateColors(result));
+        }
     }
 
     private void handleListInspect(CommandSender sender, Player target, String stat) {
         String result = com.baimo.attributebinder.placeholder.PlaceholderFormatter.inspectStatModifiers(target, stat.toUpperCase());
-        sender.sendMessage(ColorUtil.translateColors(result));
+        if (sender instanceof Player) {
+            sender.sendMessage(ColorUtil.translateColors(result));
+        }
     }
 
     private void handleListSource(CommandSender sender, Player target, String stat, String source) {
         String result = com.baimo.attributebinder.placeholder.PlaceholderFormatter.inspectStatModifiersBySource(target, stat.toUpperCase(), source.toUpperCase());
-        sender.sendMessage(ColorUtil.translateColors(result));
+        if (sender instanceof Player) {
+            sender.sendMessage(ColorUtil.translateColors(result));
+        }
     }
 
     private void handleListStats(CommandSender sender, Player target, String stat) {
         String result = com.baimo.attributebinder.placeholder.PlaceholderFormatter.getStatModifierStats(target, stat.toUpperCase());
-        sender.sendMessage(ColorUtil.translateColors(result));
+        if (sender instanceof Player) {
+            sender.sendMessage(ColorUtil.translateColors(result));
+        }
     }
 }

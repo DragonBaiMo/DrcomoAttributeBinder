@@ -1,38 +1,102 @@
-prefix: "&a[AttributeBinder]&r "
+prefix: "&#55FF55[属性]&r "
 
-error-no-permission: "{prefix} &c你没有权限执行此指令。"
-error-player-not-found: "{prefix} &c玩家 {player} 不在线。"
-error-no-online-players: "{prefix} &c当前没有在线玩家。"
+cmd:
+  error:
+    no_permission: "{prefix} &#FF5555✖ &#FFFFFF你没有权限执行此指令"
+    player_not_found: "{prefix} &#FF5555✖ &#FFFFFF玩家 &#55FFFF{player} &#FFFFFF不在线"
+    no_online_players: "{prefix} &#FF5555✖ &#FFFFFF当前没有在线玩家"
+    invalid_number: "{prefix} &#FF5555✖ &#FFFFFF数值格式非法，请输入有效数字"
+    unknown_subcommand: "{prefix} &#FF5555✖ &#FFFFFF未知子命令，输入 &#FFFF55/attributebinder help &#FFFFFF查看帮助"
 
-command-main-usage: "{prefix} &e用法: /attributebinder <give|replace|remove|list|reload|flush|help>"
-command-give-usage: "{prefix} &e用法: /attributebinder give <玩家> <属性> <数值> [KeyID]/[--k:<KeyID>] [--mem:<true|false>] [--exp:<ticks>] [--md:(replace|give)] [--mx:<上限值>]"
-command-remove-usage: "{prefix} &e用法: /attributebinder remove <玩家|*> <属性ID|all|key> [KeyID]"
-command-remove-key-success: "{prefix} &e已删除玩家 {player} 的 Key {key} 下所有属性"
-command-list-usage: "{prefix} &e用法: /attributebinder list <玩家> [all|keys <属性>|keyattrs <KeyID>|inspect <属性>|source <属性> <来源>|stats <属性>]"
-command-replace-usage: "{prefix} &e用法: /attributebinder replace <玩家> <属性> <数值> [KeyID]/[--k:<KeyID>] [--mem:<true|false>] [--exp:<ticks>] [--md:(replace|give)]"
+  usage:
+    main: "{prefix} &#FFFF55用法: &#FFFFFF/attributebinder &#FFFFFF<give|replace|remove|list|reload|flush|help>"
+    give: |
+      {prefix} &#FFAA00用法 — give
+      &#FFFFFF/attributebinder give &#FFFFFF<玩家> <属性> <数值> &#00AAAA[--k:<KeyID>] [--mem:<true|false>] [--exp:<ticks>] [--md:(replace|give)] [--mx:<上限>]
+      &#00AAAA✦ &#FFFFFF数值可加%表示百分比（如 &#FFFF555%&#FFFFFF）
+      &#00AAAA✦ &#FFFFFF参数说明：
+      &#00AAAA  • &#FFFFFF--k:<KeyID> &#FFFFFF指定 KeyID（默认为 DEFAULT）
+      &#00AAAA  • &#FFFFFF--mem:<true|false> &#FFFFFF仅内存（不持久化），默认 false
+      &#00AAAA  • &#FFFFFF--exp:<ticks> &#FFFFFF过期时间（ticks），-1=永久，0=立即移除
+      &#00AAAA  • &#FFFFFF--md:(replace|give) &#FFFFFF过期时间策略：replace=覆盖，give=叠加（默认 give）
+      &#00AAAA  • &#FFFFFF--mx:<上限> &#FFFFFF叠加后的总值不超过该上限
+      &#00AAAA✦ &#FFFFFF默认值（未填写时）：
+      &#00AAAA  • &#FFFFFFKeyID = &#FFFFFFDEFAULT
+      &#00AAAA  • &#FFFFFFmemoryOnly = &#FFFFFFfalse
+      &#00AAAA  • &#FFFFFFexpireTicks = &#FFFFFF-1 （永久）
+      &#00AAAA  • &#FFFFFFmode = &#FFFFFFgive （叠加过期）
+      &#00AAAA  • &#FFFFFFmax = &#FFFFFF无上限
+    remove: |
+      {prefix} &#FFAA00用法 — remove
+      &#FFFFFF/attributebinder remove &#FFFFFF<玩家|*> <属性ID|all|key> &#00AAAA[KeyID]
+      &#00AAAA✦ &#FFFFFFall=清空全部；key=按 KeyID 删除
+    replace: |
+      {prefix} &#FFAA00用法 — replace
+      &#FFFFFF/attributebinder replace &#FFFFFF<玩家> <属性> <数值> &#00AAAA[--k:<KeyID>] [--mem:<true|false>] [--exp:<ticks>] [--md:(replace|give)]
+      &#00AAAA✦ &#FFFFFFreplace=覆盖过期；give=叠加过期
+      &#00AAAA✦ &#FFFFFF参数说明：
+      &#00AAAA  • &#FFFFFF--k:<KeyID> &#FFFFFF指定 KeyID（默认为 DEFAULT）
+      &#00AAAA  • &#FFFFFF--mem:<true|false> &#FFFFFF仅内存（不持久化），默认 false
+      &#00AAAA  • &#FFFFFF--exp:<ticks> &#FFFFFF过期时间（ticks），-1=永久，0=立即移除
+      &#00AAAA  • &#FFFFFF--md:(replace|give) &#FFFFFF过期时间策略：replace=覆盖，give=叠加（replace 命令默认 replace）
+      &#00AAAA✦ &#FFFFFF默认值（未填写时）：
+      &#00AAAA  • &#FFFFFFKeyID = &#FFFFFFDEFAULT
+      &#00AAAA  • &#FFFFFFmemoryOnly = &#FFFFFFfalse
+      &#00AAAA  • &#FFFFFFexpireTicks = &#FFFFFF-1 （永久）
+      &#00AAAA  • &#FFFFFFmode = &#FFFFFFreplace （覆盖过期）
+    list: |
+      {prefix} &#FFAA00用法 — list
+      &#FFFFFF/attributebinder list &#FFFFFF<玩家> &#00AAAA[all|keys <属性>|keyattrs <KeyID>|inspect <属性>|source <属性> <来源>|stats <属性>]
+    list_keys: "{prefix} &#FFAA00list — keys &#00AAAA用法: &#FFFFFF/attributebinder list <玩家> keys <属性>"
+    list_keyattrs: "{prefix} &#FFAA00list — keyattrs &#00AAAA用法: &#FFFFFF/attributebinder list <玩家> keyattrs <KeyID>"
+    list_inspect: "{prefix} &#FFAA00list — inspect &#00AAAA用法: &#FFFFFF/attributebinder list <玩家> inspect <属性>"
+    list_source: "{prefix} &#FFAA00list — source &#00AAAA用法: &#FFFFFF/attributebinder list <玩家> source <属性> <来源>"
+    list_stats: "{prefix} &#FFAA00list — stats &#00AAAA用法: &#FFFFFF/attributebinder list <玩家> stats <属性>"
 
-command-reload-success: "{prefix} &a插件配置与语言文件已重载！"
-command-flush-success: "{prefix} &a已强制写入数据库并清理缓存。"
+  reload:
+    success: "{prefix} &#55FF55✔ &#FFFFFF已重载配置与语言文件"
+  flush:
+    success: "{prefix} &#55FF55✔ &#FFFFFF已强制写入数据库并清理缓存"
 
-command-give-invalid-number: "{prefix} &c数值格式非法，请输入有效数字"
-command-give-success: "{prefix} &a已为 &b{player} &a的 &d{key} &a设置 &e{attribute} = {value} &7[内存:{memoryOnly}, 过期ticks:{expireTicks}]"
+  give:
+    success: "{prefix} &#55FF55✔ &#FFFFFF已为 &#55FFFF{player} &#FFFFFF的 &#FF55FF{key} &#FFFFFF设置 &#FFAA00{attribute}&#FFFFFF = &#FFFF55{value} &#00AAAA(&#FFFFFF内存:&#FFFFFF{memoryOnly}&#00AAAA, &#FFFFFF过期:&#FFFFFF{expireTicks}&#00AAAA)"
 
-command-remove-success: "{prefix} &a已移除 &b{player} &a的 &d{key} &e{attribute} 属性"
-command-remove-all-success: "{prefix} &a已移除 &b{player} &a的所有属性加成"
-command-remove-all-players-success: "{prefix} &a已为 {count} 位在线玩家移除 &d{key} &e{attribute} 属性"
+  replace:
+    success: "{prefix} &#55FF55✔ &#FFFFFF已将 &#55FFFF{player} &#FFFFFF的 &#FF55FF{key} &#FFFFFF的 &#FFAA00{attribute} &#FFFFFF设置为 &#FFFF55{value} &#00AAAA(&#FFFFFF内存:&#FFFFFF{memoryOnly}&#00AAAA, &#FFFFFF过期:&#FFFFFF{expireTicks}&#00AAAA)"
 
-command-list-header: "{prefix} &e{player} 当前属性加成："
-command-list-item: "&6- {attribute}：{value}"
-command-list-empty: "{prefix} &c{player} 当前无任何属性加成"
-command-list-key-header: "&d{key}:"
+  remove:
+    success: "{prefix} &#55FF55✔ &#FFFFFF已移除 &#55FFFF{player} &#FFFFFF的 &#FF55FF{key} &#FFFFFF的 &#FFAA00{attribute}"
+    all_players_success: "{prefix} &#55FF55✔ &#FFFFFF已为 &#FFFFFF{count} &#FFFFFF位在线玩家移除 &#FF55FF{key} &#FFFFFF的 &#FFAA00{attribute}"
 
-command-replace-success: "{prefix} &a已将 &b{player} &a的 &d{key} &e{attribute} 设置为 {value} &7[内存:{memoryOnly}, 过期ticks:{expireTicks}]"
-command-no-change: "{prefix} &e属性未改变，无需操作"
+  list:
+    empty: "{prefix} &#FFFFFF{player} &#00AAAA暂无任何属性加成"
+    header: |
+      {prefix} &#FFFF55{player} &#FFAA00的属性加成
+      &#00AAAA------------------------------
+    key_header: "&#FF55FF◆ {key}"
+    item: "  &#FFFFFF• &#FFAA00{attribute}&#FFFFFF: &#FFFF55{value}"
+    keys_empty: "{prefix} &#FFFFFF玩家 &#55FFFF{player} &#FFFFFF的属性 &#FFAA00{stat} &#00AAAA暂无任何 Key"
+    keys_header: "{prefix} &#FFFF55玩家 &#55FFFF{player} &#FFAA00{stat} &#FFFF55的所有 Key"
+    keys_content: "&#FFFFFF{keys}"
+    keyattrs_header: |
+      {prefix} &#FFFF55玩家 &#55FFFF{player} &#FFFFFF在 Key &#FF55FF{key} &#FFFFFF下的属性
+      &#00AAAA------------------------------
 
-# 弃用提示已移除（保留键以避免空指针），不再输出任何内容
-command-deprecated-expire-arg: ""
+  help:
+    header: "&e==== &6AttributeBinder 帮助 &e===="
+    list_modes: "&#FFFFFFlist 模式: &#FFFFFFall, &#FFFFFFkeys &#FFFFFF<属性>, &#FFFFFFkeyattrs &#FFFFFF<KeyID>, &#FFFFFFinspect &#FFFFFF<属性>, &#FFFFFFsource &#FFFFFF<属性> <来源>, &#FFFFFFstats &#FFFFFF<属性>"
+    options: "&#FFFFFF选项: &#FFFFFF--k:&#FFFFFF<KeyID> &#00AAAA| &#FFFFFF--mem:&#FFFFFF<true|false> &#00AAAA| &#FFFFFF--exp:&#FFFFFF<ticks> &#00AAAA| &#FFFFFF--md:&#FFFFFF(replace|give) &#00AAAA| &#FFFFFF--mx:&#FFFFFF<上限>"
+    reload: "{prefix} &#FFFFFF/attributebinder &#FFFFFFreload &#00AAAA- &#FFFFFF重载配置与语言"
+    flush: "{prefix} &#FFFFFF/attributebinder &#FFFFFFflush &#00AAAA- &#FFFFFF写入数据库并清理缓存"
+    help: "{prefix} &#FFFFFF/attributebinder &#FFFFFFhelp &#00AAAA- &#FFFFFF显示帮助"
+    footer: "&#00AAAA------------------------------"
 
-# 占位符格式化配置
+  deprecated:
+    expire_arg: ""
+
+# 占位符格式化配置（保留原键，避免破坏 Placeholder 相关功能）
+
+# 占位符格式化配置（保留原键，避免破坏 Placeholder 相关功能）
 # 空列表显示
 placeholder-list-empty: "&7无属性加成"
 
@@ -68,29 +132,6 @@ placeholder-stats-template: "&a=== {stat} 属性统计 ===\n&f总值: &e{total}\
 placeholder-stats-source-item: "  &6{source}: &e{count}个\n"
 placeholder-stats-type-item: "  &6{type}: &e{count}个\n"
 placeholder-stats-error: "&c获取统计信息时发生错误: {error}"
-
-# 命令错误消息
-command-unknown-subcommand: "&c未知子命令"
-command-list-keys-usage: "&c用法: /attributebinder list <玩家> keys <属性>"
-command-list-keyattrs-usage: "&c用法: /attributebinder list <玩家> keyattrs <KeyID>"
-command-list-inspect-usage: "&c用法: /attributebinder list <玩家> inspect <属性>"
-command-list-source-usage: "&c用法: /attributebinder list <玩家> source <属性> <来源>"
-command-list-stats-usage: "&c用法: /attributebinder list <玩家> stats <属性>"
-command-list-keys-empty: "&c玩家 {player} 的属性 {stat} 没有任何key"
-command-list-keys-header: "&e玩家 {player} 的属性 {stat} 的所有key:"
-command-list-keys-content: "&7{keys}"
-command-list-keyattrs-header: "&e玩家 {player} 在key \"{key}\" 下的属性:"
-
-# 帮助信息
-command-help-header: "&e========== AttributeBinder 帮助 ==========="
-# 已整合到 command-give-usage 中
-# command-help-give-replace: "&7  give命令中的过期时间可添加:replace选项(如 20:replace)，表示覆盖而非累加过期时间"
-command-help-list-modes: "&7  list模式: all(所有属性), keys <属性>(显示key), keyattrs <KeyID>(key下属性), inspect <属性>(详细信息), source <属性> <来源>(按来源过滤), stats <属性>(统计信息)"
-command-help-options: "&7  选项: --k(KeyID) --mem(true|false) --exp(ticks) --md(replace|give) --mx(上限)"
-command-help-reload: "{prefix} &e/attributebinder reload &7- 重载配置和语言文件"
-command-help-flush: "{prefix} &e/attributebinder flush &7- 强制写入数据库并清理缓存"
-command-help-help: "{prefix} &e/attributebinder help &7- 显示此帮助信息"
-command-help-footer: "&e=============================="
 
 # 修饰符类型显示名称
 modifier-type-flat: "固定值"

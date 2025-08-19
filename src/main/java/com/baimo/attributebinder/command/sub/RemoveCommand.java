@@ -24,7 +24,7 @@ public class RemoveCommand implements SubCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (args.length < 3 || args.length > 4) {
-            lang.send(sender, "command-remove-usage");
+            CommandUtils.sendErrorWithOriginal(lang, sender, "cmd.usage.remove");
             return true;
         }
 
@@ -35,7 +35,7 @@ public class RemoveCommand implements SubCommand {
         if ("*".equals(playerName)) {
             Collection<? extends Player> onlinePlayers = Bukkit.getOnlinePlayers();
             if (onlinePlayers.isEmpty()) {
-                lang.send(sender, "error-no-online-players");
+                lang.send(sender, "cmd.error.no_online_players");
                 return true;
             }
             int count = 0;
@@ -44,11 +44,11 @@ public class RemoveCommand implements SubCommand {
                     count++;
                 }
             }
-            lang.send(sender, "command-remove-all-players-success", Map.of(
+			CommandUtils.sendSuccess(lang, sender, "cmd.remove.all_players_success", Map.of(
                     "count", String.valueOf(count),
                     "attribute", stat,
                     "key", keyId == null ? "*" : keyId
-            ));
+			));
             return true;
         }
 
@@ -56,11 +56,14 @@ public class RemoveCommand implements SubCommand {
         if (target == null) return true;
 
         if (removeAttributesForPlayer(target, stat, keyId)) {
-            lang.send(sender, "command-remove-success", Map.of(
+            CommandUtils.sendSuccess(lang, sender, "cmd.remove.success", Map.of(
                     "player", target.getName(),
                     "attribute", stat,
                     "key", keyId == null ? "*" : keyId
             ));
+        } else {
+            // 例如：/ab remove <player> key 缺少 keyId
+            CommandUtils.sendErrorWithOriginal(lang, sender, "cmd.usage.remove");
         }
         return true;
     }

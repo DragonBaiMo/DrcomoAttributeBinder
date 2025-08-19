@@ -39,47 +39,48 @@ public class AttributeBinderCommand implements CommandExecutor, TabCompleter {
                              @NotNull Command command,
                              @NotNull String label,
                              @NotNull String[] args) {
+        com.baimo.attributebinder.command.CommandUtils.setInvocation(label, args);
         if (args.length < 1) {
-            lang.send(sender, "command-main-usage");
+            lang.send(sender, "cmd.usage.main");
             return true;
         }
 
         String sub = args[0].toLowerCase();
         switch (sub) {
             case "give":
-                if (!checkPermission(sender, "attributebinder.give", "error-no-permission")) return true;
+                if (!checkPermission(sender, "attributebinder.give", "cmd.error.no_permission")) return true;
                 giveCmd.execute(sender, args);
                 break;
             case "remove":
-                if (!checkPermission(sender, "attributebinder.remove", "error-no-permission")) return true;
+                if (!checkPermission(sender, "attributebinder.remove", "cmd.error.no_permission")) return true;
                 removeCmd.execute(sender, args);
                 break;
             case "list":
-                if (!checkPermission(sender, "attributebinder.list", "error-no-permission")) return true;
+                if (!checkPermission(sender, "attributebinder.list", "cmd.error.no_permission")) return true;
                 listCmd.execute(sender, args);
                 break;
             case "replace":
-                if (!checkPermission(sender, "attributebinder.replace", "error-no-permission")) return true;
+                if (!checkPermission(sender, "attributebinder.replace", "cmd.error.no_permission")) return true;
                 replaceCmd.execute(sender, args);
                 break;
             case "reload":
-                if (!checkPermission(sender, "attributebinder.admin", "error-no-permission")) return true;
+                if (!checkPermission(sender, "attributebinder.admin", "cmd.error.no_permission")) return true;
                 ConfigManager.get().reload();
                 LangManager.get().reload();
                 AttributeBinder.getInstance().resetFlushTask(ConfigManager.get().getSyncIntervalMinutes());
                 AttributeBinder.getInstance().updateDebugLevel();
-                CommandUtils.sendSuccess(lang, sender, "command-reload-success");
+                CommandUtils.sendSuccess(lang, sender, "cmd.reload.success");
                 break;
             case "flush":
-                if (!checkPermission(sender, "attributebinder.admin", "error-no-permission")) return true;
+                if (!checkPermission(sender, "attributebinder.admin", "cmd.error.no_permission")) return true;
                 new FlushTask().runTaskAsynchronously(AttributeBinder.getInstance());
-                CommandUtils.sendSuccess(lang, sender, "command-flush-success");
+                CommandUtils.sendSuccess(lang, sender, "cmd.flush.success");
                 break;
             case "help":
                 handleHelp(sender);
                 break;
             default:
-                lang.send(sender, "command-unknown-subcommand");
+                lang.send(sender, "cmd.error.unknown_subcommand");
         }
         return true;
     }
@@ -194,17 +195,17 @@ public class AttributeBinderCommand implements CommandExecutor, TabCompleter {
      * 参数格式: give <玩家> <属性> <数值> [KeyID] [memoryOnly] [过期时长ticks]
      */
     private void handleHelp(CommandSender sender) {
-        CommandUtils.sendSuccess(lang, sender, "command-help-header");
-        CommandUtils.sendSuccess(lang, sender, "command-give-usage");
-        CommandUtils.sendSuccess(lang, sender, "command-remove-usage");
-        CommandUtils.sendSuccess(lang, sender, "command-replace-usage");
-        CommandUtils.sendSuccess(lang, sender, "command-list-usage");
-        CommandUtils.sendSuccess(lang, sender, "command-help-list-modes");
-        CommandUtils.sendSuccess(lang, sender, "command-help-options");
-        CommandUtils.sendSuccess(lang, sender, "command-help-reload");
-        CommandUtils.sendSuccess(lang, sender, "command-help-flush");
-        CommandUtils.sendSuccess(lang, sender, "command-help-help");
-        CommandUtils.sendSuccess(lang, sender, "command-help-footer");
+        CommandUtils.sendSuccess(lang, sender, "cmd.help.header");
+        CommandUtils.sendSuccess(lang, sender, "cmd.usage.give");
+        CommandUtils.sendSuccess(lang, sender, "cmd.usage.remove");
+        CommandUtils.sendSuccess(lang, sender, "cmd.usage.replace");
+        CommandUtils.sendSuccess(lang, sender, "cmd.usage.list");
+        CommandUtils.sendSuccess(lang, sender, "cmd.help.list_modes");
+        CommandUtils.sendSuccess(lang, sender, "cmd.help.options");
+        CommandUtils.sendSuccess(lang, sender, "cmd.help.reload");
+        CommandUtils.sendSuccess(lang, sender, "cmd.help.flush");
+        CommandUtils.sendSuccess(lang, sender, "cmd.help.help");
+        CommandUtils.sendSuccess(lang, sender, "cmd.help.footer");
     }
 
     // --------------------------------------

@@ -16,6 +16,39 @@ import java.util.*;
 public final class CommandUtils {
     private CommandUtils() {}
 
+    // 每次命令调用时记录原始完整指令，便于子命令在用法错误时回显
+    private static final ThreadLocal<String> TL_ORIGINAL_COMMAND = new ThreadLocal<>();
+
+    public static void setInvocation(String label, String[] args) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("/").append(label);
+        if (args != null && args.length > 0) {
+            sb.append(" ").append(String.join(" ", args));
+        }
+        TL_ORIGINAL_COMMAND.set(sb.toString());
+    }
+
+    public static String getOriginalCommand() {
+        String cmd = TL_ORIGINAL_COMMAND.get();
+        return cmd == null ? "[未知指令]" : cmd;
+    }
+
+    /**
+     * 发送错误消息前，统一先回显原始指令，便于用户对照纠正参数。
+     */
+    public static void sendErrorWithOriginal(LangManager lang, CommandSender sender, String key) {
+        sender.sendMessage("[调试] 原始指令: " + getOriginalCommand());
+        lang.send(sender, key);
+    }
+
+    /**
+     * 发送带参数的错误消息前，统一先回显原始指令。
+     */
+    public static void sendErrorWithOriginal(LangManager lang, CommandSender sender, String key, Map<String, String> params) {
+        sender.sendMessage("[调试] 原始指令: " + getOriginalCommand());
+        lang.send(sender, key, params);
+    }
+
     /**
      * 仅向玩家发送成功类消息；若为控制台（非玩家），则不发送。
      */
@@ -37,7 +70,7 @@ public final class CommandUtils {
     public static Player getPlayer(String name, CommandSender sender, LangManager lang) {
         Player player = Bukkit.getPlayer(name);
         if (player == null) {
-            lang.send(sender, "error-player-not-found", Map.of("player", name));
+            sendErrorWithOriginal(lang, sender, "cmd.error.player_not_found", Map.of("player", name));
         }
         return player;
     }
@@ -52,7 +85,7 @@ public final class CommandUtils {
             double val = Double.parseDouble(raw);
             return new ValuePair(val, percent);
         } catch (NumberFormatException e) {
-            lang.send(sender, errorKey);
+            sendErrorWithOriginal(lang, sender, errorKey);
             return null;
         }
     }
@@ -110,9 +143,10 @@ public final class CommandUtils {
             v = extractOptionValue(opt, "max", "mx");
             if (v != null) {
                 try {
-                    maxValue = Double.parseDouble(v);
+                    String mx = v.endsWith("%") ? v.substring(0, v.length() - 1) : v;
+                    maxValue = Double.parseDouble(mx);
                 } catch (NumberFormatException e) {
-                    lang.send(sender, "command-give-invalid-number");
+                    sendErrorWithOriginal(lang, sender, "cmd.error.invalid_number");
                     return null;
                 }
                 continue;
@@ -126,7 +160,7 @@ public final class CommandUtils {
                 } else if ("give".equalsIgnoreCase(v)) {
                     replaceExpire = false;
                 } else {
-                    lang.send(sender, "command-give-usage");
+                    sendErrorWithOriginal(lang, sender, "cmd.usage.give");
                     return null;
                 }
                 continue;
@@ -156,7 +190,7 @@ public final class CommandUtils {
                 try {
                     expireTicks = Long.parseLong(v);
                 } catch (NumberFormatException e) {
-                    lang.send(sender, "command-give-invalid-number");
+                    sendErrorWithOriginal(lang, sender, "cmd.error.invalid_number");
                     return null;
                 }
                 continue;
@@ -169,6 +203,10 @@ public final class CommandUtils {
             if (!args[i].startsWith("--")) legacy.add(args[i]);
         }
         OptParams legacyParams = parseGiveParamsLegacy(legacy, sender, lang);
+        if (legacyParams == null) {
+            // 旧结构解析失败时，已在旧方法内发送了对应错误提示，这里直接中断
+            return null;
+        }
 
         // 合并优先级：新结构 -- 覆盖旧结构
         String finalKey = (keyId != null ? keyId : legacyParams.keyId);
@@ -184,6 +222,7 @@ public final class CommandUtils {
         Boolean memoryOnly = null;           // 三态：null 表示未指定
         Long expireTicks = null;             // 三态：null 表示未指定；最终默认-1永久
         Boolean replaceExpire = null;        // 三态：null 表示未指定；replace 命令默认 true（覆盖）
+        double maxValue = -1D;               // 默认无限制
 
         // 新结构 -- 参数优先
         for (int i = 4; i < args.length; i++) {
@@ -191,8 +230,21 @@ public final class CommandUtils {
             if (!token.startsWith("--")) continue;
             String opt = token.substring(2);
 
-            // --mode | --md
+            // --max | --mx
             String v;
+            v = extractOptionValue(opt, "max", "mx");
+            if (v != null) {
+                try {
+                    String mx = v.endsWith("%") ? v.substring(0, v.length() - 1) : v;
+                    maxValue = Double.parseDouble(mx);
+                } catch (NumberFormatException e) {
+                    sendErrorWithOriginal(lang, sender, "cmd.error.invalid_number");
+                    return null;
+                }
+                continue;
+            }
+
+            // --mode | --md
             v = extractOptionValue(opt, "mode", "md");
             if (v != null) {
                 if ("replace".equalsIgnoreCase(v)) {
@@ -200,7 +252,7 @@ public final class CommandUtils {
                 } else if ("give".equalsIgnoreCase(v)) {
                     replaceExpire = false;
                 } else {
-                    lang.send(sender, "command-replace-usage");
+                    sendErrorWithOriginal(lang, sender, "cmd.usage.replace");
                     return null;
                 }
                 continue;
@@ -227,7 +279,7 @@ public final class CommandUtils {
                 try {
                     expireTicks = Long.parseLong(v);
                 } catch (NumberFormatException e) {
-                    lang.send(sender, "command-give-invalid-number");
+                    sendErrorWithOriginal(lang, sender, "cmd.error.invalid_number");
                     return null;
                 }
                 continue;
@@ -236,13 +288,17 @@ public final class CommandUtils {
 
         // 旧结构（位置参数）
         OptParams legacy = parseReplaceParamsLegacy(collectLegacy(args, 4), sender, lang);
+        if (legacy == null) {
+            // 旧结构解析失败时，已在旧方法内发送了对应错误提示，这里直接中断
+            return null;
+        }
 
         String finalKey = (keyId != null ? keyId : legacy.keyId);
         boolean finalMemoryOnly = (memoryOnly != null ? memoryOnly : legacy.memoryOnly);
         long finalExpire = (expireTicks != null ? expireTicks : (legacy.expireTicks >= 0 ? legacy.expireTicks : -1L));
         boolean finalReplace = (replaceExpire != null ? replaceExpire : legacy.replaceExpire);
 
-        return new OptParams(finalKey, finalMemoryOnly, finalExpire, finalReplace);
+        return new OptParams(finalKey, finalMemoryOnly, finalExpire, finalReplace, maxValue);
     }
 
     /**
@@ -328,24 +384,26 @@ public final class CommandUtils {
             if (t.contains(":")) {
                 String[] parts = t.split(":", 2);
                 try {
-                    expireTicks = Long.parseLong(parts[0]);
+                    // 兼容小数：先按 Double 解析，再四舍五入为 tick
+                    expireTicks = Math.round(Double.parseDouble(parts[0]));
                 } catch (NumberFormatException e) {
-                    lang.send(sender, "command-give-invalid-number");
+                    sendErrorWithOriginal(lang, sender, "cmd.error.invalid_number");
                     return null;
                 }
                 if (parts.length > 1) {
                     if ("replace".equalsIgnoreCase(parts[1])) replaceExpire = true;
                     else if ("give".equalsIgnoreCase(parts[1])) replaceExpire = false;
                     else {
-                        lang.send(sender, "command-give-usage");
+                        sendErrorWithOriginal(lang, sender, "cmd.usage.give");
                         return null;
                     }
                 }
             } else {
                 try {
-                    expireTicks = Long.parseLong(t);
+                    // 兼容小数：先按 Double 解析，再四舍五入为 tick
+                    expireTicks = Math.round(Double.parseDouble(t));
                 } catch (NumberFormatException e) {
-                    lang.send(sender, "command-give-invalid-number");
+                    sendErrorWithOriginal(lang, sender, "cmd.error.invalid_number");
                     return null;
                 }
             }
@@ -353,7 +411,7 @@ public final class CommandUtils {
 
         if (legacy.size() >= 3) {
             // 第7位旧形式，提示弃用
-            lang.send(sender, "command-deprecated-expire-arg");
+            lang.send(sender, "cmd.deprecated.expire_arg");
         }
         return new OptParams(keyId, memoryOnly, expireTicks, replaceExpire);
     }
@@ -379,24 +437,26 @@ public final class CommandUtils {
             if (t.contains(":")) {
                 String[] parts = t.split(":", 2);
                 try {
-                    expireTicks = Long.parseLong(parts[0]);
+                    // 兼容小数：先按 Double 解析，再四舍五入为 tick
+                    expireTicks = Math.round(Double.parseDouble(parts[0]));
                 } catch (NumberFormatException e) {
-                    lang.send(sender, "command-give-invalid-number");
+                    sendErrorWithOriginal(lang, sender, "cmd.error.invalid_number");
                     return null;
                 }
                 if (parts.length > 1) {
                     if ("replace".equalsIgnoreCase(parts[1])) replaceExpire = true;
                     else if ("give".equalsIgnoreCase(parts[1])) replaceExpire = false;
                     else {
-                        lang.send(sender, "command-replace-usage");
+                        sendErrorWithOriginal(lang, sender, "cmd.usage.replace");
                         return null;
                     }
                 }
             } else {
                 try {
-                    expireTicks = Long.parseLong(t);
+                    // 兼容小数：先按 Double 解析，再四舍五入为 tick
+                    expireTicks = Math.round(Double.parseDouble(t));
                 } catch (NumberFormatException e) {
-                    lang.send(sender, "command-give-invalid-number");
+                    sendErrorWithOriginal(lang, sender, "cmd.error.invalid_number");
                     return null;
                 }
             }

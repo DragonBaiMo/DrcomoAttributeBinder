@@ -23,14 +23,14 @@ public class GiveCommand implements SubCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (args.length < 4) {
-            lang.send(sender, "command-give-usage");
+            CommandUtils.sendErrorWithOriginal(lang, sender, "cmd.usage.give");
             return true;
         }
         Player target = CommandUtils.getPlayer(args[1], sender, lang);
         if (target == null) return true;
 
         String stat = args[2].toUpperCase();
-        ValuePair vp = CommandUtils.parseValue(args[3], sender, "command-give-invalid-number", lang);
+        ValuePair vp = CommandUtils.parseValue(args[3], sender, "cmd.error.invalid_number", lang);
         if (vp == null) return true;
 
         OptParams params = CommandUtils.parseGiveParams(args, sender, lang);
@@ -38,9 +38,19 @@ public class GiveCommand implements SubCommand {
 
         UUID uuid = target.getUniqueId();
         double oldVal = CacheManager.getAttribute(uuid, stat, params.keyId);
-        // 叠加总值上限：若指定 --max，则不超过此上限；未指定则按旧逻辑（叠加）
-        // 计算候选新值（叠加），若指定 --max 则裁剪
-        double candidate = oldVal + vp.value;
+        // 获取旧记录以判断类型（百分比/数值）是否一致
+        Entry entry = CacheManager.snapshot(uuid)
+                .getOrDefault(stat, Collections.emptyMap())
+                .get(params.keyId);
+        boolean oldPercent = entry != null && entry.isPercent();
+
+        // 计算候选新值：
+        // - 若旧条目存在且类型与本次一致（均为百分比或均为数值），则做叠加
+        // - 若类型不一致或不存在旧条目，则视为切换类型，直接采用本次值
+        double candidate = (entry != null && oldPercent == vp.percent)
+                ? (oldVal + vp.value)
+                : vp.value;
+        // 上限裁剪：百分比仅按数值位裁剪，但生效仍按百分比
         double newVal = params.maxValue >= 0 ? Math.min(candidate, params.maxValue) : candidate;
 
 		if (Double.compare(oldVal, newVal) == 0) {
@@ -56,21 +66,17 @@ public class GiveCommand implements SubCommand {
 			} else {
 				newExpire = oldTicks;
 			}
-            Entry entry = CacheManager.snapshot(uuid)
-                    .getOrDefault(stat, Collections.emptyMap())
-                    .get(params.keyId);
-            boolean oldPercent = entry != null && entry.isPercent();
             boolean oldMemory = entry != null && entry.isMemoryOnly();
             CacheManager.setAttribute(uuid, stat, params.keyId, oldVal, oldPercent, oldMemory, newExpire);
             String valStr = CommandUtils.formatValue(oldVal, oldPercent);
-            lang.send(sender, "command-give-success", Map.of(
+			CommandUtils.sendSuccess(lang, sender, "cmd.give.success", Map.of(
                     "player", target.getName(),
                     "attribute", stat,
                     "value", valStr,
                     "key", params.keyId,
                     "memoryOnly", String.valueOf(oldMemory),
-                    "expireTicks", String.valueOf(newExpire)
-            ));
+					"expireTicks", String.valueOf(newExpire)
+			));
 		} else {
 			long oldExpire = CacheManager.getExpireTicks(uuid, stat, params.keyId);
 			// 过期时间新语义：-1=永久，0=移除，>0 按模式处理；未提供时解析层已默认 -1
@@ -87,14 +93,14 @@ public class GiveCommand implements SubCommand {
             CacheManager.setAttribute(uuid, stat, params.keyId, newVal, vp.percent, params.memoryOnly, newExpire);
             AttributeApplier.apply(uuid, stat, params.keyId, newVal, vp.percent);
             String valStr = CommandUtils.formatValue(newVal, vp.percent);
-            lang.send(sender, "command-give-success", Map.of(
+			CommandUtils.sendSuccess(lang, sender, "cmd.give.success", Map.of(
                     "player", target.getName(),
                     "attribute", stat,
                     "value", valStr,
                     "key", params.keyId,
                     "memoryOnly", String.valueOf(params.memoryOnly),
-                    "expireTicks", String.valueOf(newExpire)
-            ));
+					"expireTicks", String.valueOf(newExpire)
+			));
         }
         return true;
     }
