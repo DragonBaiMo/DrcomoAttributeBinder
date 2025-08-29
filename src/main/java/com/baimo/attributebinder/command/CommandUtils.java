@@ -68,11 +68,35 @@ public final class CommandUtils {
     }
 
     public static Player getPlayer(String name, CommandSender sender, LangManager lang) {
+        // 1) 先按名称解析（保持原有行为，包括模糊匹配）
         Player player = Bukkit.getPlayer(name);
-        if (player == null) {
-            sendErrorWithOriginal(lang, sender, "cmd.error.player_not_found", Map.of("player", name));
+        if (player != null) return player;
+
+        // 2) 若名称未找到，尝试将输入作为 UUID 解析（支持带连字符与 32 位无连字符十六进制）
+        UUID uuid = null;
+        try {
+            uuid = UUID.fromString(name);
+        } catch (IllegalArgumentException ignored) {
+            // 若是不带连字符的 32 位十六进制，尝试格式化后再解析
+            if (name != null && name.length() == 32 && name.matches("[0-9a-fA-F]{32}")) {
+                String dashed = name.substring(0, 8) + "-" + name.substring(8, 12) + "-" + name.substring(12, 16)
+                        + "-" + name.substring(16, 20) + "-" + name.substring(20);
+                try {
+                    uuid = UUID.fromString(dashed);
+                } catch (IllegalArgumentException ignored2) {
+                    // 保持 uuid 为 null，后续统一提示未找到
+                }
+            }
         }
-        return player;
+
+        if (uuid != null) {
+            player = Bukkit.getPlayer(uuid);
+            if (player != null) return player;
+        }
+
+        // 3) 名称与 UUID 均未找到在线玩家，提示错误
+        sendErrorWithOriginal(lang, sender, "cmd.error.player_not_found", Map.of("player", name));
+        return null;
     }
 
     public static ValuePair parseValue(String raw, CommandSender sender, String errorKey, LangManager lang) {
