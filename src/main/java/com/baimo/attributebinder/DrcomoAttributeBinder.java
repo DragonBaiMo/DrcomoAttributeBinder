@@ -5,6 +5,8 @@ import cn.drcomo.corelib.hook.placeholder.PlaceholderAPIUtil;
 import cn.drcomo.corelib.message.MessageService;
 import cn.drcomo.corelib.util.DebugUtil;
 import com.baimo.attributebinder.command.AttributeBinderCommand;
+import com.baimo.attributebinder.listener.MMOItemsReloadListener;
+import com.baimo.attributebinder.listener.MythicLibReloadListener;
 import com.baimo.attributebinder.listener.PlayerListener;
 import com.baimo.attributebinder.placeholder.PlaceholderHandler;
 import com.baimo.attributebinder.task.FlushTask;
@@ -42,8 +44,12 @@ public final class DrcomoAttributeBinder extends JavaPlugin {
     private JdbcStorageManager storage;
     // 定时刷新任务
     private BukkitTask flushTask;
+    // MMOItems 重载后的属性恢复任务
+    private BukkitTask reloadRecoveryTask;
     // 异步任务管理器
     private AsyncTaskManager taskManager;
+
+    private static final long MMOITEMS_RELOAD_RECOVERY_DELAY_TICKS = 40L;
 
     @Override
     public void onEnable() {
@@ -73,6 +79,10 @@ public final class DrcomoAttributeBinder extends JavaPlugin {
         // 取消刷新任务
         if (flushTask != null) {
             flushTask.cancel();
+        }
+        if (reloadRecoveryTask != null) {
+            reloadRecoveryTask.cancel();
+            reloadRecoveryTask = null;
         }
         if (taskManager != null) {
             taskManager.shutdown();
@@ -159,6 +169,8 @@ public final class DrcomoAttributeBinder extends JavaPlugin {
     /** 注册事件监听器 */
     private void initListeners() {
         getServer().getPluginManager().registerEvents(new PlayerListener(), this);
+        getServer().getPluginManager().registerEvents(new MMOItemsReloadListener(), this);
+        getServer().getPluginManager().registerEvents(new MythicLibReloadListener(), this);
     }
 
     /** 加载当前在线所有玩家的数据 */
@@ -191,6 +203,61 @@ public final class DrcomoAttributeBinder extends JavaPlugin {
         // 从数据库加载的属性都是持久化的，不是memoryOnly
         CacheManager.setAttribute(uuid, stat, keyId, entry.getValue(), entry.isPercent(), false, entry.getExpireTicks());
         AttributeApplier.apply(uuid, stat, keyId, entry.getValue(), entry.isPercent());
+    }
+
+    /**
+     * 在 MMOItems 热重载后重放在线玩家的 ABB 属性，修复 MythicLib/MMOCore 链路重建导致的属性失联。
+     */
+    public void scheduleReloadRecovery() {
+        if (reloadRecoveryTask != null) {
+            reloadRecoveryTask.cancel();
+            debug.info("检测到重复的 MMOItems 重载事件，已合并 ABB 属性恢复任务。");
+        } else {
+            debug.info("检测到 MMOItems 重载事件，准备重新应用在线玩家的 ABB 属性。");
+        }
+
+        reloadRecoveryTask = Bukkit.getScheduler().runTaskLater(this, () -> {
+            reloadRecoveryTask = null;
+            int playerCount = 0;
+            int modifierCount = 0;
+
+            for (Player player : Bukkit.getOnlinePlayers()) {
+                int applied = reapplyCachedAttributes(player.getUniqueId());
+                if (applied > 0) {
+                    playerCount++;
+                    modifierCount += applied;
+                }
+            }
+
+            debug.info("MMOItems 重载后的 ABB 属性恢复完成：已为 " + playerCount + " 名玩家重放 " + modifierCount + " 条属性修饰符。");
+        }, MMOITEMS_RELOAD_RECOVERY_DELAY_TICKS);
+    }
+
+    /**
+     * 基于内存缓存为指定玩家重新注册全部 ABB 属性修饰符。
+     *
+     * @param uuid 玩家 UUID
+     * @return 本次重放的修饰符条数
+     */
+    public int reapplyCachedAttributes(UUID uuid) {
+        Map<String, Map<String, CacheManager.Entry>> attrs = CacheManager.snapshot(uuid);
+        if (attrs.isEmpty()) {
+            return 0;
+        }
+
+        AttributeApplier.removeAll(uuid);
+
+        int applied = 0;
+        for (Map.Entry<String, Map<String, CacheManager.Entry>> statEntry : attrs.entrySet()) {
+            String stat = statEntry.getKey();
+            for (Map.Entry<String, CacheManager.Entry> keyEntry : statEntry.getValue().entrySet()) {
+                CacheManager.Entry entry = keyEntry.getValue();
+                AttributeApplier.apply(uuid, stat, keyEntry.getKey(), entry.getValue(), entry.isPercent());
+                applied++;
+            }
+        }
+
+        return applied;
     }
 
     /** 初始化所有定时任务，包括刷新与过期清理 */

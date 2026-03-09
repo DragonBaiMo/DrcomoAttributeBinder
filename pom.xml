@@ -78,7 +78,8 @@
             <groupId>io.lumine</groupId>
             <artifactId>MythicLib-dist</artifactId>
             <version>1.7.1-SNAPSHOT</version>
-            <scope>provided</scope>
+            <scope>system</scope>
+            <systemPath>I:/CustomBuild/Minecraft/Other/mythiclib-12月12日-持续更新/target/MythicLib-1.7.1-SNAPSHOT.jar</systemPath>
         </dependency>
         <dependency>
             <groupId>org.jetbrains</groupId>
