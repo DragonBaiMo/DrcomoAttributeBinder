@@ -22,7 +22,13 @@ public final class PlaceholderFormatter {
      * 格式化AttributeBinder管理的属性，按key分组显示
      */
     public static String formatAttributeBinderAttributes(Player player) {
-        UUID uuid = player.getUniqueId();
+        return formatAttributeBinderAttributes(player.getUniqueId());
+    }
+
+    /**
+     * 格式化 AttributeBinder 管理的属性（支持离线玩家，通过 UUID 查询缓存）
+     */
+    public static String formatAttributeBinderAttributes(UUID uuid) {
         Map<String, Map<String, CacheManager.Entry>> statMap = CacheManager.snapshot(uuid);
         
         if (statMap.isEmpty()) {
@@ -135,7 +141,13 @@ public final class PlaceholderFormatter {
      * 格式化指定key下的所有属性
      */
     public static String formatKeyAttributes(Player player, String keyId) {
-        UUID uuid = player.getUniqueId();
+        return formatKeyAttributes(player.getUniqueId(), keyId);
+    }
+
+    /**
+     * 格式化指定 key 下的所有属性（支持离线玩家，通过 UUID 查询缓存）
+     */
+    public static String formatKeyAttributes(UUID uuid, String keyId) {
         Map<String, Map<String, CacheManager.Entry>> statMap = CacheManager.snapshot(uuid);
         
         Map<String, CacheManager.Entry> keyAttrs = new LinkedHashMap<>();
@@ -184,8 +196,15 @@ public final class PlaceholderFormatter {
      * 基于调研文档中的AttributeInspector实现
      */
     public static String inspectStatModifiers(Player player, String statName) {
+        return inspectStatModifiers(player.getUniqueId(), statName);
+    }
+
+    /**
+     * 详细检查指定属性的所有修饰符信息（支持离线玩家，通过 UUID 访问）
+     */
+    public static String inspectStatModifiers(UUID uuid, String statName) {
         try {
-            MMOPlayerData playerData = MMOPlayerData.get(player.getUniqueId());
+            MMOPlayerData playerData = MMOPlayerData.get(uuid);
             StatInstance statInstance = playerData.getStatMap().getInstance(statName);
             
             StringBuilder sb = new StringBuilder();
@@ -237,8 +256,15 @@ public final class PlaceholderFormatter {
      * 按来源过滤显示修饰符
      */
     public static String inspectStatModifiersBySource(Player player, String statName, String sourceName) {
+        return inspectStatModifiersBySource(player.getUniqueId(), statName, sourceName);
+    }
+
+    /**
+     * 按来源过滤显示修饰符（支持离线玩家，通过 UUID 访问）
+     */
+    public static String inspectStatModifiersBySource(UUID uuid, String statName, String sourceName) {
         try {
-            MMOPlayerData playerData = MMOPlayerData.get(player.getUniqueId());
+            MMOPlayerData playerData = MMOPlayerData.get(uuid);
             StatInstance statInstance = playerData.getStatMap().getInstance(statName);
             
             ModifierSource targetSource;
@@ -294,8 +320,15 @@ public final class PlaceholderFormatter {
      * 获取指定属性的修饰符统计信息
      */
     public static String getStatModifierStats(Player player, String statName) {
+        return getStatModifierStats(player.getUniqueId(), statName);
+    }
+
+    /**
+     * 获取指定属性的修饰符统计信息（支持离线玩家，通过 UUID 访问）
+     */
+    public static String getStatModifierStats(UUID uuid, String statName) {
         try {
-            MMOPlayerData playerData = MMOPlayerData.get(player.getUniqueId());
+            MMOPlayerData playerData = MMOPlayerData.get(uuid);
             StatInstance statInstance = playerData.getStatMap().getInstance(statName);
             
             Collection<StatModifier> modifiers = statInstance.getModifiers();

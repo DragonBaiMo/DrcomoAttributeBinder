@@ -7,6 +7,7 @@ import cn.drcomo.corelib.util.DebugUtil;
 import com.baimo.attributebinder.command.AttributeBinderCommand;
 import com.baimo.attributebinder.listener.MMOItemsReloadListener;
 import com.baimo.attributebinder.listener.MythicLibReloadListener;
+import com.baimo.attributebinder.listener.PlaceholderAPIReloadListener;
 import com.baimo.attributebinder.listener.PlayerListener;
 import com.baimo.attributebinder.placeholder.PlaceholderHandler;
 import com.baimo.attributebinder.task.FlushTask;
@@ -30,6 +31,8 @@ import java.util.UUID;
  */
 public final class DrcomoAttributeBinder extends JavaPlugin {
 
+    private static final String PLACEHOLDER_IDENTIFIER = "attributebinder";
+
     private static DrcomoAttributeBinder INSTANCE;
 
     // Debug 工具
@@ -46,6 +49,8 @@ public final class DrcomoAttributeBinder extends JavaPlugin {
     private BukkitTask flushTask;
     // MMOItems 重载后的属性恢复任务
     private BukkitTask reloadRecoveryTask;
+    // PlaceholderAPI 重载后的占位符补注册任务
+    private BukkitTask placeholderReRegisterTask;
     // 异步任务管理器
     private AsyncTaskManager taskManager;
 
@@ -83,6 +88,10 @@ public final class DrcomoAttributeBinder extends JavaPlugin {
         if (reloadRecoveryTask != null) {
             reloadRecoveryTask.cancel();
             reloadRecoveryTask = null;
+        }
+        if (placeholderReRegisterTask != null) {
+            placeholderReRegisterTask.cancel();
+            placeholderReRegisterTask = null;
         }
         if (taskManager != null) {
             taskManager.shutdown();
@@ -142,7 +151,7 @@ public final class DrcomoAttributeBinder extends JavaPlugin {
 
     /** 初始化 PlaceholderAPI 与占位符注册 */
     private void initPlaceholderAPI() {
-        papiUtil = new PlaceholderAPIUtil(this, getName().toLowerCase());
+        papiUtil = new PlaceholderAPIUtil(this, PLACEHOLDER_IDENTIFIER);
         placeholderHandler = new PlaceholderHandler(papiUtil);
         placeholderHandler.registerPlaceholders();
     }
@@ -171,6 +180,34 @@ public final class DrcomoAttributeBinder extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new PlayerListener(), this);
         getServer().getPluginManager().registerEvents(new MMOItemsReloadListener(), this);
         getServer().getPluginManager().registerEvents(new MythicLibReloadListener(), this);
+        getServer().getPluginManager().registerEvents(new PlaceholderAPIReloadListener(), this);
+    }
+
+    /**
+     * 立即重新注册 ABB 占位符。
+     */
+    public void reRegisterPlaceholdersNow() {
+        initPlaceholderAPI();
+    }
+
+    /**
+     * 在 PlaceholderAPI 执行 reload 后，延迟补注册 ABB 占位符。
+     *
+     * @param trigger 触发来源（日志用）
+     */
+    public void schedulePlaceholderReRegister(String trigger) {
+        if (placeholderReRegisterTask != null) {
+            placeholderReRegisterTask.cancel();
+        }
+        placeholderReRegisterTask = Bukkit.getScheduler().runTaskLater(this, () -> {
+            placeholderReRegisterTask = null;
+            try {
+                reRegisterPlaceholdersNow();
+                debug.info("检测到 " + trigger + "，已补注册 ABB 占位符。");
+            } catch (Exception e) {
+                debug.error("补注册 ABB 占位符失败: " + e.getMessage());
+            }
+        }, 1L);
     }
 
     /** 加载当前在线所有玩家的数据 */

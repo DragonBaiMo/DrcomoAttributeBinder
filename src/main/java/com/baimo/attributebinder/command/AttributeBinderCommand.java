@@ -69,6 +69,7 @@ public class AttributeBinderCommand implements CommandExecutor, TabCompleter {
                 LangManager.get().reload();
                 DrcomoAttributeBinder.getInstance().resetFlushTask(ConfigManager.get().getSyncIntervalMinutes());
                 DrcomoAttributeBinder.getInstance().updateDebugLevel();
+                DrcomoAttributeBinder.getInstance().reRegisterPlaceholdersNow();
                 CommandUtils.sendSuccess(lang, sender, "cmd.reload.success");
                 break;
             case "flush":

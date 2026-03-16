@@ -8,9 +8,11 @@ import org.bukkit.OfflinePlayer;
 class PlaceholderContext {
     final OfflinePlayer target;
     final String args;
+    final boolean explicitTarget;
 
-    PlaceholderContext(OfflinePlayer target, String args) {
+    PlaceholderContext(OfflinePlayer target, String args, boolean explicitTarget) {
         this.target = target;
         this.args = args;
+        this.explicitTarget = explicitTarget;
     }
 }

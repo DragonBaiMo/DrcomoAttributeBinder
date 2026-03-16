@@ -2,8 +2,6 @@ package com.baimo.attributebinder.placeholder;
 
 import cn.drcomo.corelib.hook.placeholder.PlaceholderAPIUtil;
 import com.baimo.attributebinder.cache.CacheManager;
-import com.baimo.attributebinder.config.LangManager;
-import com.baimo.attributebinder.placeholder.PlaceholderFormatter;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
@@ -29,22 +27,155 @@ public class PlaceholderHandler {
      * @param args 原始参数字符串
      * @return 包含目标玩家和剩余参数的上下文
      */
-    @SuppressWarnings("deprecation")
     private PlaceholderContext resolveContext(Player player, String args) {
-        if (args == null) {
-            return new PlaceholderContext(player, null);
+        if (args == null || args.isEmpty()) {
+            return new PlaceholderContext(player, args, false);
         }
-        String[] parts = args.split("_", 2);
-        if (parts.length > 1) {
-            String name = parts[0];
-            OfflinePlayer op = Bukkit.getPlayerExact(name);
-            if (op == null) op = Bukkit.getOfflinePlayer(name);
-            if (op != null && (op.isOnline() || op.hasPlayedBefore())) {
-                return new PlaceholderContext(op, parts[1]);
+
+        final String prefixPlayer = "player:";
+        final String prefixUuid = "uuid:";
+
+        if (args.regionMatches(true, 0, prefixPlayer, 0, prefixPlayer.length())) {
+            String rest = args.substring(prefixPlayer.length());
+            int idx = rest.indexOf('_');
+            if (idx > 0) {
+                String playerName = rest.substring(0, idx);
+                String remained = rest.substring(idx + 1);
+                OfflinePlayer target = Bukkit.getPlayerExact(playerName);
+                if (target == null) {
+                    target = Bukkit.getOfflinePlayer(playerName);
+                }
+                if (target != null && (target.isOnline() || target.hasPlayedBefore())) {
+                    return new PlaceholderContext(target, remained, true);
+                }
+            }
+            return new PlaceholderContext(player, args, false);
+        }
+
+        if (args.regionMatches(true, 0, prefixUuid, 0, prefixUuid.length())) {
+            String rest = args.substring(prefixUuid.length());
+            int idx = rest.indexOf('_');
+            if (idx > 0) {
+                String uuidRaw = rest.substring(0, idx);
+                String remained = rest.substring(idx + 1);
+                UUID uuid = tryParseUuid(uuidRaw);
+                if (uuid != null) {
+                    OfflinePlayer target = Bukkit.getOfflinePlayer(uuid);
+                    if (target != null && (target.isOnline() || target.hasPlayedBefore())) {
+                        return new PlaceholderContext(target, remained, true);
+                    }
+                }
+            }
+            return new PlaceholderContext(player, args, false);
+        }
+
+        return new PlaceholderContext(player, args, false);
+    }
+
+    private UUID tryParseUuid(String raw) {
+        if (raw == null || raw.isEmpty()) {
+            return null;
+        }
+        try {
+            return UUID.fromString(raw);
+        } catch (IllegalArgumentException ignored) {
+            if (raw.length() == 32 && raw.matches("[0-9a-fA-F]{32}")) {
+                String dashed = raw.substring(0, 8) + "-" + raw.substring(8, 12) + "-" + raw.substring(12, 16)
+                        + "-" + raw.substring(16, 20) + "-" + raw.substring(20);
+                try {
+                    return UUID.fromString(dashed);
+                } catch (IllegalArgumentException ignored2) {
+                    return null;
+                }
+            }
+            return null;
+        }
+    }
+
+    private String unresolvedTargetFallback(String originalArgs) {
+        if (originalArgs != null && (originalArgs.regionMatches(true, 0, "player:", 0, 7)
+                || originalArgs.regionMatches(true, 0, "uuid:", 0, 5))) {
+            return "";
+        }
+        return "0";
+    }
+
+    private boolean hasExactKey(UUID targetUuid, String stat, String keyId) {
+        if (stat == null || keyId == null || stat.isEmpty() || keyId.isEmpty()) {
+            return false;
+        }
+        Map<String, Map<String, CacheManager.Entry>> statMap = CacheManager.snapshot(targetUuid);
+        Map<String, CacheManager.Entry> keyMap = statMap.get(stat.toUpperCase(Locale.ROOT));
+        return keyMap != null && keyMap.containsKey(keyId);
+    }
+
+    private String parseAttrCurrentPlayer(UUID targetUuid, String useArgs) {
+        if (useArgs == null || useArgs.isEmpty()) {
+            return "0";
+        }
+
+        int statKeySplit = useArgs.lastIndexOf('_');
+        if (statKeySplit > 0) {
+            String left = useArgs.substring(0, statKeySplit);
+            String right = useArgs.substring(statKeySplit + 1);
+
+            if (!right.isEmpty() && hasExactKey(targetUuid, left, right)) {
+                double val = CacheManager.getAttribute(targetUuid, left.toUpperCase(Locale.ROOT), right);
+                return String.valueOf(val);
             }
         }
-        return new PlaceholderContext(player, args);
+
+        double total = CacheManager.getAttribute(targetUuid, useArgs.toUpperCase(Locale.ROOT));
+        return String.valueOf(total);
     }
+
+    private String parseAttrExplicitTarget(UUID targetUuid, String useArgs) {
+        if (useArgs == null || useArgs.isEmpty()) {
+            return "0";
+        }
+
+        int statKeySplit = useArgs.lastIndexOf('_');
+        if (statKeySplit > 0) {
+            String stat = useArgs.substring(0, statKeySplit).toUpperCase(Locale.ROOT);
+            String key = useArgs.substring(statKeySplit + 1);
+            if (!key.isEmpty() && hasExactKey(targetUuid, stat, key)) {
+                double val = CacheManager.getAttribute(targetUuid, stat, key);
+                return String.valueOf(val);
+            }
+        }
+
+        double total = CacheManager.getAttribute(targetUuid, useArgs.toUpperCase(Locale.ROOT));
+        return String.valueOf(total);
+    }
+
+    private String[] splitSourceArgs(String useArgs) {
+        if (useArgs == null) {
+            return null;
+        }
+
+        String normalized = useArgs.toUpperCase(Locale.ROOT);
+        for (String sourceName : SOURCE_NAMES) {
+            String suffix = "_" + sourceName;
+            if (normalized.endsWith(suffix) && normalized.length() > suffix.length()) {
+                String stat = normalized.substring(0, normalized.length() - suffix.length());
+                return new String[]{stat, sourceName};
+            }
+        }
+        return null;
+    }
+
+    private static final List<String> SOURCE_NAMES = List.of(
+            "ACCESSORY",
+            "ARMOR",
+            "HAND_ITEM",
+            "MAINHAND_ITEM",
+            "MELEE_WEAPON",
+            "OFFHAND_ITEM",
+            "ORNAMENT",
+            "OTHER",
+            "RANGED_WEAPON",
+            "VOID"
+    );
     
     /**
      * 注册所有占位符
@@ -55,19 +186,13 @@ public class PlaceholderHandler {
             PlaceholderContext ctx = resolveContext(player, args);
             OfflinePlayer target = ctx.target;
             String useArgs = ctx.args;
-            if (useArgs == null || useArgs.isEmpty()) return "0";
-            String[] parts = useArgs.split("_");
-            if (parts.length == 1) {
-                String stat = parts[0].toUpperCase();
-                double val = CacheManager.getAttribute(target.getUniqueId(), stat);
-                return String.valueOf(val);
-            } else if (parts.length == 2) {
-                String stat = parts[0].toUpperCase();
-                String keyId = parts[1];
-                double val = CacheManager.getAttribute(target.getUniqueId(), stat, keyId);
-                return String.valueOf(val);
+            if (target == null) return unresolvedTargetFallback(args);
+
+            UUID targetUuid = target.getUniqueId();
+            if (ctx.explicitTarget) {
+                return parseAttrExplicitTarget(targetUuid, useArgs);
             }
-            return "0";
+            return parseAttrCurrentPlayer(targetUuid, useArgs);
         });
         
         // 扩展的list占位符：显示详细的属性列表（支持其他玩家解析）
@@ -78,9 +203,10 @@ public class PlaceholderHandler {
             if (target == null) return "";
             String useArgs = ctx.args == null ? "" : ctx.args;
             if ("all".equalsIgnoreCase(useArgs)) {
-                return PlaceholderFormatter.formatAllAttributes((Player) target);
+                if (!(target instanceof Player onlinePlayer)) return "";
+                return PlaceholderFormatter.formatAllAttributes(onlinePlayer);
             } else if (useArgs.isEmpty()) {
-                return PlaceholderFormatter.formatAttributeBinderAttributes((Player) target);
+                return PlaceholderFormatter.formatAttributeBinderAttributes(target.getUniqueId());
             }
             return "";
         });
@@ -91,7 +217,7 @@ public class PlaceholderHandler {
             OfflinePlayer target = ctx.target;
             String useArgs = ctx.args;
             if (target == null || useArgs == null || useArgs.isEmpty()) return "";
-            String stat = useArgs.toUpperCase();
+            String stat = useArgs.toUpperCase(Locale.ROOT);
             UUID uuid = target.getUniqueId();
             Map<String, Map<String, CacheManager.Entry>> statMap = CacheManager.snapshot(uuid);
             Map<String, CacheManager.Entry> keyMap = statMap.get(stat);
@@ -105,7 +231,7 @@ public class PlaceholderHandler {
             OfflinePlayer target = ctx.target;
             String keyId = ctx.args;
             if (target == null || keyId == null || keyId.isEmpty()) return "";
-            return PlaceholderFormatter.formatKeyAttributes((Player) target, keyId);
+            return PlaceholderFormatter.formatKeyAttributes(target.getUniqueId(), keyId);
         });
         
         // 新增：详细检查指定属性的所有修饰符信息
@@ -114,7 +240,7 @@ public class PlaceholderHandler {
             OfflinePlayer target = ctx.target;
             String stat = ctx.args;
             if (target == null || stat == null || stat.isEmpty()) return "";
-            return PlaceholderFormatter.inspectStatModifiers((Player) target, stat.toUpperCase());
+            return PlaceholderFormatter.inspectStatModifiers(target.getUniqueId(), stat.toUpperCase(Locale.ROOT));
         });
         
         // 新增：按来源过滤显示修饰符
@@ -123,9 +249,9 @@ public class PlaceholderHandler {
             OfflinePlayer target = ctx.target;
             String useArgs = ctx.args;
             if (target == null || useArgs == null) return "";
-            String[] parts = useArgs.split("_", 2);
-            if (parts.length < 2) return "";
-            return PlaceholderFormatter.inspectStatModifiersBySource((Player) target, parts[0].toUpperCase(), parts[1].toUpperCase());
+            String[] parts = splitSourceArgs(useArgs);
+            if (parts == null) return "";
+            return PlaceholderFormatter.inspectStatModifiersBySource(target.getUniqueId(), parts[0], parts[1]);
         });
         
         // 新增：显示指定属性的修饰符统计
@@ -134,7 +260,7 @@ public class PlaceholderHandler {
             OfflinePlayer target = ctx.target;
             String stat = ctx.args;
             if (target == null || stat == null || stat.isEmpty()) return "";
-            return PlaceholderFormatter.getStatModifierStats((Player) target, stat.toUpperCase());
+            return PlaceholderFormatter.getStatModifierStats(target.getUniqueId(), stat.toUpperCase(Locale.ROOT));
         });
     }
     
