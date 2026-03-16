@@ -1,151 +1,137 @@
-# AttributeBinder 占位符使用指南
+# AttributeBinder 占位符使用指南（已修复版）
 
-本文档详细说明了 AttributeBinder 插件扩展后的占位符功能。
+本文档对应当前实现，重点解决了 `ATTACK_DAMAGE` / `MAX_HEALTH` 等带下划线属性名在旧语法下的歧义问题。
 
-## 代码架构说明
+## 1. 总体规则
 
-为了提高代码的模块化和可维护性，占位符相关的功能已从主类 `AttributeBinder.java` 中提取到独立的 `PlaceholderHandler.java` 类中。这样的设计有以下优势：
+- 占位符标识符：`attributebinder`
+- 基础格式：`%attributebinder_<key>_<args>%`
+- 推荐目标玩家前缀（**显式语法，避免歧义**）：
+  - `player:<玩家名>_...`
+  - `uuid:<UUID>_...`
 
-- **职责分离**：主类专注于插件的生命周期管理，占位符处理器专注于占位符逻辑
-- **代码复用**：占位符处理逻辑可以更容易地被其他组件使用
-- **易于维护**：占位符相关的修改只需要关注 `PlaceholderHandler` 类
-- **测试友好**：可以独立测试占位符功能
+> 示例：`%attributebinder_attr_player:Alice_ATTACK_DAMAGE%`
 
-## 新增占位符功能
-> 所有占位符均支持在参数前指定玩家名称或UUID，如：`%attributebinder_attr_<player>_<stat>%` 或 `%attributebinder_inspect_<player>_<stat>%` 等。
+---
 
-### 1. 基础属性查询
--- `%attributebinder_attr_<PLAYER>_<STAT>%` - 获取指定玩家的属性总值
--- `%attributebinder_attr_<PLAYER>_<STAT>_<KEY>%` - 获取指定玩家在key下的属性值
+## 2. 可用占位符
 
-示例：
-示例：
-- `%attributebinder_attr_Alice_ATTACK_DAMAGE%` - 获取玩家 Alice 的攻击伤害总值
-- `%attributebinder_attr_Alice_ATTACK_DAMAGE_sword1%` - 获取玩家 Alice key 为"sword1"的攻击伤害值
+### 2.1 attr（属性值查询）
 
-### 2. 属性列表显示
-- `%attributebinder_list_<PLAYER>%` - 显示指定玩家 AttributeBinder 管理的属性，按key分组
-- `%attributebinder_list_<PLAYER>_all%` - 显示指定玩家所有属性（包括非AttributeBinder的）
+#### 当前玩家
+- `%attributebinder_attr_<STAT>%`：查询当前玩家该属性总值
+- `%attributebinder_attr_<STAT>_<KEY>%`：查询当前玩家指定 Key 下的属性值
 
-### 3. Key相关查询
-- `%attributebinder_keys_<PLAYER>_<STAT>%` - 列出指定玩家指定属性的所有key
-- `%attributebinder_keyattrs_<PLAYER>_<KEY>%` - 显示指定玩家在指定key下的所有属性
+#### 指定玩家（推荐显式前缀）
+- `%attributebinder_attr_player:<PLAYER>_<STAT>%`
+- `%attributebinder_attr_player:<PLAYER>_<STAT>_<KEY>%`
+- `%attributebinder_attr_uuid:<UUID>_<STAT>%`
+- `%attributebinder_attr_uuid:<UUID>_<STAT>_<KEY>%`
 
-示例：
-- `%attributebinder_keys_Alice_ATTACK_DAMAGE%` - 列出玩家 Alice 攻击伤害的所有key
-- `%attributebinder_keyattrs_Alice_sword1%` - 显示玩家 Alice key为"sword1"下的所有属性
+> 说明：
+> - 当前玩家模式下，系统会优先尝试识别“`<STAT>_<KEY>` 是否真实存在”，若不存在则按 `<STAT>` 总值处理。
+> - 指定玩家模式下，`<STAT>_<KEY>` 按“最后一个 `_`”切分（即 key 不能再包含 `_`）。
 
-### 4. 详细修饰符检查（新增）
-- `%attributebinder_inspect_<PLAYER>_<STAT>%` - 详细检查指定玩家属性的所有修饰符信息
-- `%attributebinder_source_<PLAYER>_<STAT>_<SOURCE>%` - 按来源过滤显示指定玩家属性的修饰符
-- `%attributebinder_stats_<PLAYER>_<STAT>%` - 显示指定玩家属性的修饰符统计
+---
 
-示例：
-- `%attributebinder_inspect_Alice_ATTACK_DAMAGE%` - 详细检查玩家 Alice 攻击伤害的所有修饰符
-- `%attributebinder_source_Alice_ATTACK_DAMAGE_EQUIPMENT%` - 显示玩家 Alice 来自装备的攻击伤害修饰符
-- `%attributebinder_stats_Alice_ATTACK_DAMAGE%` - 显示玩家 Alice 攻击伤害的统计信息
+### 2.2 list（属性列表）
 
-#### 支持的修饰符来源类型：
-- `ACCESSORY` - 饰品
-- `ARMOR` - 护甲
-- `HAND_ITEM` - 手持物品
-- `MAINHAND_ITEM` - 主手物品
-- `MELEE_WEAPON` - 近战武器
-- `OFFHAND_ITEM` - 副手物品
-- `ORNAMENT` - 装饰品
-- `OTHER` - 其他
-- `RANGED_WEAPON` - 远程武器
-- `VOID` - 虚空
+- `%attributebinder_list%`：当前玩家的 ABB 属性（按 key 分组）
+- `%attributebinder_list_all%`：当前玩家所有属性（含非 ABB 来源）
+- `%attributebinder_list_player:<PLAYER>%`
+- `%attributebinder_list_player:<PLAYER>_all%`
+- `%attributebinder_list_uuid:<UUID>%`
+- `%attributebinder_list_uuid:<UUID>_all%`
 
-## 格式化配置
+> 说明：
+> - `list_all` 依赖 MMOItems / MythicLib 运行环境。
+> - 目标玩家离线时，`list` 仍可返回 ABB 缓存数据；`list_all` 需要在线玩家上下文。
 
-在 `lang.yml` 中可以自定义以下格式：
+---
 
-### 基础格式
-- `placeholder-list-empty` - 无属性时的显示文本
-- `placeholder-list-separator` - 不同部分之间的分隔符
+### 2.3 keys（列出属性对应 Key）
 
-### AttributeBinder属性格式
-- `placeholder-list-key-header` - key标题格式，支持 `{key}` 变量
-- `placeholder-list-item` - 属性项格式，支持 `{attribute}`, `{value}`, `{key}` 等变量
+- `%attributebinder_keys_<STAT>%`
+- `%attributebinder_keys_player:<PLAYER>_<STAT>%`
+- `%attributebinder_keys_uuid:<UUID>_<STAT>%`
 
-### 所有属性格式
-- `placeholder-list-ab-header` - AttributeBinder属性区域标题
-- `placeholder-list-other-header` - 其他来源属性区域标题
-- `placeholder-list-other-item` - 其他来源属性项格式，支持 `{attribute}`, `{value}`, `{total}` 变量
+返回示例：`vip, guild, event`
 
-### 指定key属性格式
-- `placeholder-key-empty` - 指定key无属性时的显示，支持 `{key}` 变量
-- `placeholder-key-item` - key属性项格式
+---
 
-### 详细检查占位符格式（新增）
-- `placeholder-inspect-header` - 检查结果标题，支持 `{stat}`, `{total}` 变量
-- `placeholder-inspect-item` - 修饰符项格式，支持 `{key}`, `{value}`, `{type}`, `{source}`, `{slot}`, `{uuid}` 变量
-- `placeholder-inspect-empty` - 无修饰符时的显示
-- `placeholder-inspect-error` - 检查出错时的显示，支持 `{error}` 变量
+### 2.4 keyattrs（列出某 Key 下的所有属性）
 
-### 按来源过滤占位符格式（新增）
-- `placeholder-source-header` - 过滤结果标题，支持 `{stat}`, `{source}` 变量
-- `placeholder-source-item` - 过滤修饰符项格式，支持 `{key}`, `{value}`, `{type}` 变量
-- `placeholder-source-empty` - 无匹配修饰符时的显示
-- `placeholder-source-invalid` - 无效来源时的显示，支持 `{source}` 变量
-- `placeholder-source-error` - 过滤出错时的显示，支持 `{error}` 变量
+- `%attributebinder_keyattrs_<KEY>%`
+- `%attributebinder_keyattrs_player:<PLAYER>_<KEY>%`
+- `%attributebinder_keyattrs_uuid:<UUID>_<KEY>%`
 
-### 统计信息占位符格式（新增）
-- `placeholder-stats-template` - 统计信息模板，支持多个变量
-- `placeholder-stats-source-item` - 来源统计项格式
-- `placeholder-stats-type-item` - 类型统计项格式
-- `placeholder-stats-error` - 统计出错时的显示
+---
 
-### 修饰符类型和来源显示名称（新增）
-- `modifier-type-*` - 修饰符类型的中文显示名称
-- `modifier-source-*` - 修饰符来源的中文显示名称
+### 2.5 inspect（属性修饰符详情）
 
-## 使用示例
+- `%attributebinder_inspect_<STAT>%`
+- `%attributebinder_inspect_player:<PLAYER>_<STAT>%`
+- `%attributebinder_inspect_uuid:<UUID>_<STAT>%`
 
-### 在聊天中显示属性
-```
-/tellraw @a {"text":"你的攻击伤害：%attributebinder_attr_ATTACK_DAMAGE%"}
-```
+---
 
-### 显示详细属性列表
-```
-/tellraw @a {"text":"%attributebinder_list%"}
-```
+### 2.6 source（按来源过滤修饰符）
 
-### 显示所有属性（包括其他插件的）
-```
-/tellraw @a {"text":"%attributebinder_list_all%"}
-```
+- `%attributebinder_source_<STAT>_<SOURCE>%`
+- `%attributebinder_source_player:<PLAYER>_<STAT>_<SOURCE>%`
+- `%attributebinder_source_uuid:<UUID>_<STAT>_<SOURCE>%`
 
-### 详细检查属性修饰符（新增）
-```
-/tellraw @a {"text":"%attributebinder_inspect_ATTACK_DAMAGE%"}
-```
+支持的 `SOURCE`：
+- `ACCESSORY`
+- `ARMOR`
+- `HAND_ITEM`
+- `MAINHAND_ITEM`
+- `MELEE_WEAPON`
+- `OFFHAND_ITEM`
+- `ORNAMENT`
+- `OTHER`
+- `RANGED_WEAPON`
+- `VOID`
 
-### 按来源过滤显示修饰符（新增）
-```
-/tellraw @a {"text":"%attributebinder_source_ATTACK_DAMAGE_EQUIPMENT%"}
-```
+> 注意：`EQUIPMENT` 不是有效来源值。
 
-### 显示属性统计信息（新增）
-```
-/tellraw @a {"text":"%attributebinder_stats_ATTACK_DAMAGE%"}
-```
+---
 
-## 向后兼容性
+### 2.7 stats（属性统计）
 
-原有的占位符格式仍然支持：
-- `%attributebinder_attr_<STAT>%` - 继续工作
-- `%attributebinder_list%` - 现在显示更详细的按key分组信息
+- `%attributebinder_stats_<STAT>%`
+- `%attributebinder_stats_player:<PLAYER>_<STAT>%`
+- `%attributebinder_stats_uuid:<UUID>_<STAT>%`
 
-## 注意事项
+---
 
-1. 新的占位符需要PlaceholderAPI插件支持
-2. `list_all` 和详细检查占位符需要MMOItems/MythicLib插件正常运行
-3. 所有格式化文本支持Minecraft颜色代码（&符号）
-4. 属性值会自动添加正负号显示（正数显示+号）
-5. 百分比属性会自动添加%符号
-6. 详细检查功能会显示修饰符的完整信息，包括来源、类型、槽位等
-7. 修饰符来源和类型支持中文显示，可在语言文件中自定义
-8. 统计功能会按来源和类型对修饰符进行分组统计
+## 3. lang.yml 可配置项
+
+- 列表：`placeholder-list-*`
+- key 视图：`placeholder-key-*`
+- inspect：`placeholder-inspect-*`
+- source：`placeholder-source-*`
+- stats：`placeholder-stats-*`
+- 来源/类型显示名：`modifier-source-*`、`modifier-type-*`
+
+---
+
+## 4. 兼容与迁移建议
+
+- 兼容：`%attributebinder_attr_<STAT>%`、`%attributebinder_list%` 等旧格式仍可用。
+- 强烈建议：涉及“指定玩家”时改用 `player:` / `uuid:` 显式前缀，避免名称/下划线冲突。
+
+---
+
+## 5. 常见排查
+
+1. 占位符原样输出（如 `%attributebinder_attr_MAX_HEALTH%`）
+   - 执行：`/papi reload`
+   - 再测：`/papi parse me %attributebinder_attr_MAX_HEALTH%`
+
+2. 指定玩家不生效
+   - 确认写法：`player:<name>_...` 或 `uuid:<uuid>_...`
+   - 玩家名请使用准确大小写（建议与在线列表一致）
+
+3. source 返回无效来源
+   - 检查是否使用了有效来源枚举（见 2.6）

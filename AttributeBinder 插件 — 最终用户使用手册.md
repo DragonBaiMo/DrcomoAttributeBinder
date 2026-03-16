@@ -291,7 +291,9 @@ prefix: "&c[属性大师]&r "
 ## 7. PlaceholderAPI 占位符
 本插件提供了一套强大的占位符，用于在其他插件中显示属性数据。
 
-+ **支持目标玩家**: 所有占位符都支持 `<玩家名>_` 前缀来获取其他玩家的数据。例如：`%attributebinder_attr_Steve_MAX_HEALTH%`。
++ **支持目标玩家（推荐显式前缀）**: 所有占位符支持 `player:<玩家名>_` 或 `uuid:<UUID>_` 前缀获取其他玩家数据。
++   - 示例：`%attributebinder_attr_player:Steve_MAX_HEALTH%`
++   - 示例：`%attributebinder_attr_uuid:550e8400-e29b-41d4-a716-446655440000_ATTACK_DAMAGE%`
 
 ### 占位符列表
 + `%attributebinder_attr_<属性ID>%`
@@ -475,4 +477,3 @@ storage:
 # 在调试时，可以适当延长同步周期，避免日志刷屏
 sync-interval-minutes: 30
 ```
-
